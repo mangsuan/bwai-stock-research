@@ -1,6 +1,11 @@
+---
+marp: true
+auto-advance: 20
+---
+
 # BWAI — Buy With AI
 
-## Slide 1 — 20 seconds
+## Slide 1
 ### AI-powered stock research made simple
 - BWAI helps people understand stocks faster
 - Turns market noise into clear, structured insights
@@ -8,7 +13,7 @@
 
 ---
 
-## Slide 2 — 20 seconds
+## Slide 2
 ### The problem
 - Retail investors are overwhelmed by charts, news, and reports
 - Financial information is fragmented and often too technical
@@ -16,7 +21,7 @@
 
 ---
 
-## Slide 3 — 20 seconds
+## Slide 3
 ### The solution
 - BWAI gives a short research summary for any stock ticker
 - Explains key signals, trends, risks, and market behavior
@@ -24,7 +29,7 @@
 
 ---
 
-## Slide 4 — 20 seconds
+## Slide 4
 ### How it works
 1. User enters a stock ticker such as AAPL, NVDA, or TSLA
 2. The system gathers market data and research signals
@@ -33,7 +38,7 @@
 
 ---
 
-## Slide 5 — 20 seconds
+## Slide 5
 ### Why this matters
 - Saves time for users who cannot read long reports
 - Reduces confusion and emotional decision-making
@@ -42,7 +47,7 @@
 
 ---
 
-## Slide 6 — 20 seconds
+## Slide 6
 ### MVP and next steps
 - Search stocks and generate AI research summaries
 - Show “why this stock today” and bull vs bear analysis
