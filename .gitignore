@@ -10,6 +10,7 @@ build/
 *.db
 __pycache__/
 frontend/.next/
+frontend/out/
 frontend/node_modules/
 mobile/node_modules/
 uploads/
