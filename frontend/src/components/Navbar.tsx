@@ -29,6 +29,12 @@ export default function Navbar() {
           ) : user ? (
             <>
               <Link
+                href="/explore"
+                className="text-sm text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-colors"
+              >
+                Explore
+              </Link>
+              <Link
                 href="/watchlist"
                 className="text-sm text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-colors"
               >
@@ -62,6 +68,12 @@ export default function Navbar() {
             </>
           ) : (
             <>
+              <Link
+                href="/explore"
+                className="text-sm text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-colors"
+              >
+                Explore
+              </Link>
               <Link
                 href="/login"
                 className="text-sm text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-colors"

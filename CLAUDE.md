@@ -53,6 +53,8 @@ Web UI + Mobile App (shows individual + final)
 | Endpoint | Description |
 |---|---|
 | `GET /` | API status |
+| `GET /stocks` | List/search stocks from SEC EDGAR (supports `?q=&page=&per_page=`) |
+| `GET /stocks/popular` | Popular stock tickers for quick access |
 | `GET /quote/{ticker}` | Real-time stock quote (price, change%, 52-week range) |
 | `GET /research/{ticker}` | Multi-agent research with synthesis (cached 4h) |
 | `GET /agents` | List available AI agents and their roles |
@@ -80,6 +82,7 @@ Next.js app in `frontend/` with Apple-inspired Tailwind CSS design. Supports dar
 | Page | File | Description |
 |------|------|-------------|
 | Home | `frontend/src/app/page.tsx` | Hero section, search bar, quick tickers |
+| Explore | `frontend/src/app/explore/page.tsx` | Stock Explorer — browse, search, add to watchlist |
 | Research | `frontend/src/app/research/[ticker]/page.tsx` | Price card, bull/bear, agent tabs |
 | Login | `frontend/src/app/login/page.tsx` | Username/password + OAuth |
 | Register | `frontend/src/app/register/page.tsx` | Account creation + OAuth |

@@ -1,11 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const FALLBACK_TICKERS = ["AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "GOOG"];
 
 export default function Home() {
   const [ticker, setTicker] = useState("");
+  const [quickTickers, setQuickTickers] = useState(FALLBACK_TICKERS);
   const router = useRouter();
+
+  useEffect(() => {
+    fetch(`${API_BASE}/stocks/popular`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.stocks?.length) {
+          setQuickTickers(data.stocks.map((s: { symbol: string }) => s.symbol));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +64,7 @@ export default function Home() {
 
           {/* Quick Tickers */}
           <div className="flex flex-wrap justify-center gap-3 animate-fade-in-delay">
-            {["AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "GOOG"].map((t) => (
+            {quickTickers.map((t) => (
               <button
                 key={t}
                 onClick={() => router.push(`/research/${t}`)}

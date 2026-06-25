@@ -248,6 +248,118 @@ async def _yahoo_quote_summary(ticker: str, modules: str) -> dict | None:
         return None
 
 
+# ---------- Stock List (SEC EDGAR) ----------
+
+SEC_EDGAR_URL = "https://www.sec.gov/files/company_tickers.json"
+SEC_HEADERS = {"User-Agent": "BWAI Stock Research bot@bwai.app"}
+
+# In-memory cache
+_stock_list_cache: list[dict] = []
+_stock_list_cache_time: float = 0
+STOCK_CACHE_TTL = 86400  # 24 hours
+
+# Fallback popular stocks
+POPULAR_STOCKS = [
+    {"symbol": "AAPL", "name": "Apple Inc.", "exchange": "NASDAQ"},
+    {"symbol": "MSFT", "name": "Microsoft Corporation", "exchange": "NASDAQ"},
+    {"symbol": "GOOGL", "name": "Alphabet Inc.", "exchange": "NASDAQ"},
+    {"symbol": "AMZN", "name": "Amazon.com Inc.", "exchange": "NASDAQ"},
+    {"symbol": "NVDA", "name": "NVIDIA Corporation", "exchange": "NASDAQ"},
+    {"symbol": "META", "name": "Meta Platforms Inc.", "exchange": "NASDAQ"},
+    {"symbol": "TSLA", "name": "Tesla Inc.", "exchange": "NASDAQ"},
+    {"symbol": "BRK.B", "name": "Berkshire Hathaway Inc.", "exchange": "NYSE"},
+    {"symbol": "JPM", "name": "JPMorgan Chase & Co.", "exchange": "NYSE"},
+    {"symbol": "V", "name": "Visa Inc.", "exchange": "NYSE"},
+    {"symbol": "JNJ", "name": "Johnson & Johnson", "exchange": "NYSE"},
+    {"symbol": "WMT", "name": "Walmart Inc.", "exchange": "NYSE"},
+    {"symbol": "PG", "name": "Procter & Gamble Co.", "exchange": "NYSE"},
+    {"symbol": "MA", "name": "Mastercard Inc.", "exchange": "NYSE"},
+    {"symbol": "UNH", "name": "UnitedHealth Group Inc.", "exchange": "NYSE"},
+    {"symbol": "HD", "name": "Home Depot Inc.", "exchange": "NYSE"},
+    {"symbol": "DIS", "name": "Walt Disney Co.", "exchange": "NYSE"},
+    {"symbol": "BAC", "name": "Bank of America Corp.", "exchange": "NYSE"},
+    {"symbol": "XOM", "name": "Exxon Mobil Corp.", "exchange": "NYSE"},
+    {"symbol": "KO", "name": "Coca-Cola Co.", "exchange": "NYSE"},
+]
+
+
+async def _fetch_stock_list() -> list[dict]:
+    """Fetch stock list from SEC EDGAR, cached for 24h."""
+    global _stock_list_cache, _stock_list_cache_time
+    now = time.time()
+
+    if _stock_list_cache and (now - _stock_list_cache_time) < STOCK_CACHE_TTL:
+        return _stock_list_cache
+
+    try:
+        async with httpx.AsyncClient(headers=SEC_HEADERS) as client:
+            resp = await client.get(SEC_EDGAR_URL, timeout=15)
+            if resp.status_code != 200:
+                print(f"SEC EDGAR error: HTTP {resp.status_code}")
+                return _stock_list_cache if _stock_list_cache else POPULAR_STOCKS
+
+            data = resp.json()
+            stocks = []
+            for entry in data.values():
+                stocks.append({
+                    "symbol": entry.get("ticker", "").upper(),
+                    "name": entry.get("title", ""),
+                    "exchange": "SEC",
+                })
+
+            # Sort by symbol
+            stocks.sort(key=lambda s: s["symbol"])
+            _stock_list_cache = stocks
+            _stock_list_cache_time = now
+            print(f"Loaded {len(stocks)} stocks from SEC EDGAR")
+            return stocks
+    except Exception as e:
+        print(f"Failed to fetch SEC EDGAR stock list: {e}")
+        return _stock_list_cache if _stock_list_cache else POPULAR_STOCKS
+
+
+@app.get("/stocks/popular")
+async def get_popular_stocks():
+    """Return popular stock tickers for quick access."""
+    return {"stocks": POPULAR_STOCKS}
+
+
+@app.get("/stocks")
+async def list_stocks(q: str = "", page: int = 1, per_page: int = 50):
+    """List stocks with optional search and pagination.
+
+    Query params:
+        q: Search term (matches symbol or company name)
+        page: Page number (1-based)
+        per_page: Items per page (default 50, max 200)
+    """
+    per_page = min(per_page, 200)
+    page = max(page, 1)
+
+    stocks = await _fetch_stock_list()
+
+    # Filter by search query
+    if q:
+        query = q.upper().strip()
+        stocks = [
+            s for s in stocks
+            if query in s["symbol"].upper() or query in s["name"].upper()
+        ]
+
+    total = len(stocks)
+    total_pages = max(1, (total + per_page - 1) // per_page)
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    return {
+        "stocks": stocks[start:end],
+        "page": page,
+        "per_page": per_page,
+        "total": total,
+        "total_pages": total_pages,
+    }
+
+
 # ---------- Routes ----------
 
 

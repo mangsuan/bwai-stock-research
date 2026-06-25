@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,12 +10,25 @@ import {
   Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { API_BASE } from "../../lib/api";
 
-const QUICK_TICKERS = ["AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "GOOG"];
+const FALLBACK_TICKERS = ["AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "GOOG"];
 
 export default function HomeScreen() {
   const [ticker, setTicker] = useState("");
+  const [quickTickers, setQuickTickers] = useState(FALLBACK_TICKERS);
   const router = useRouter();
+
+  useEffect(() => {
+    fetch(`${API_BASE}/stocks/popular`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.stocks?.length) {
+          setQuickTickers(data.stocks.map((s: { symbol: string }) => s.symbol));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   function handleSearch() {
     const cleaned = ticker.trim().toUpperCase();
@@ -62,7 +75,7 @@ export default function HomeScreen() {
 
         {/* Quick Tickers */}
         <View style={styles.tickersContainer}>
-          {QUICK_TICKERS.map((t) => (
+          {quickTickers.map((t) => (
             <TouchableOpacity
               key={t}
               style={styles.tickerChip}
