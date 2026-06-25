@@ -4,7 +4,7 @@
 
 - **GitHub username:** @mangsuan
 - **Repo URL:** https://github.com/mangsuan/bwai-stock-research
-- **Live / download URL:** <!-- TODO: replace with your deployed URL (e.g. https://bwai.vercel.app) -->
+- **Live / download URL:** https://mangsuan.github.io/bwai-stock-research
 - **License:** MIT
 - **One-line summary:** BWAI is an AI-powered stock research assistant that uses multiple AI agents to analyze stocks and provide balanced bull/bear insights.
 

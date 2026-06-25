@@ -115,8 +115,8 @@ Earn points by watching ads or purchasing
 
 ## Demo
 
-- **Web:** <!-- TODO: add deployed URL -->
-- **API Docs:** <!-- TODO: add deployed URL -->/docs
+- **Web:** https://mangsuan.github.io/bwai-stock-research
+- **API Docs:** Run backend locally → http://localhost:8000/docs
 - **Mobile:** `cd mobile && npx expo start`
 
 ---
