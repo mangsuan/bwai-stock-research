@@ -20,11 +20,9 @@ Mobile resolution: 390×844
 ![Home page](screenshots/01-home.png)
 ![Research results](screenshots/02-research.png)
 ![Login page](screenshots/03-login.png)
-![Profile page](screenshots/04-profile.png)
-![Watchlist page](screenshots/05-watchlist.png)
-![API docs](screenshots/06-api-docs.png)
-![Mobile home](screenshots/07-mobile-home.png)
-![Mobile profile](screenshots/08-mobile-profile.png)
+![Register page](screenshots/04-register.png)
+![Mobile home](screenshots/05-mobile-home.png)
+![Mobile research](screenshots/06-mobile-research.png)
 
 ## What Was Built
 
