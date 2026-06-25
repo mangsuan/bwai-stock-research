@@ -115,8 +115,8 @@ Earn points by watching ads or purchasing
 
 ## Demo
 
-- **Web:** http://localhost:3000
-- **Mobile:** Expo Go → `exp://192.168.0.26:8081`
-- **API Docs:** http://localhost:8000/docs
+- **Web:** <!-- TODO: add deployed URL -->
+- **API Docs:** <!-- TODO: add deployed URL -->/docs
+- **Mobile:** `cd mobile && npx expo start`
 
 ---

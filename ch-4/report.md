@@ -1,19 +1,21 @@
 # ch-4 Personal Project — Report
 
-github_username: mangsuan
-personal_repo_url: https://github.com/mangsuan/bwai-stock-research
-project_summary: BWAI (Buy With AI) is an AI-powered stock research assistant with multi-agent AI analysis, user profiles, member levels, and dark mode across web and mobile.
-slides_url: slides/pitch.md
-license: MIT
-live_url: http://localhost:3000
-download_url: N/A
+## Project
 
-## Screenshots
+- **GitHub username:** @mangsuan
+- **Repo URL:** https://github.com/mangsuan/bwai-stock-research
+- **Live / download URL:** <!-- TODO: replace with your deployed URL (e.g. https://bwai.vercel.app) -->
+- **License:** MIT
+- **One-line summary:** BWAI is an AI-powered stock research assistant that uses multiple AI agents to analyze stocks and provide balanced bull/bear insights.
+
+## Product-Intro Slides
+
+- **Slides path:** slides/pitch.md
+
+## Demo Screenshots
 
 Desktop resolution: 1280×800
 Mobile resolution: 390×844
-
-### Desktop Screenshots
 
 ![Home page](screenshots/01-home.png)
 ![Research results](screenshots/02-research.png)
@@ -21,9 +23,6 @@ Mobile resolution: 390×844
 ![Profile page](screenshots/04-profile.png)
 ![Watchlist page](screenshots/05-watchlist.png)
 ![API docs](screenshots/06-api-docs.png)
-
-### Mobile Screenshots
-
 ![Mobile home](screenshots/07-mobile-home.png)
 ![Mobile profile](screenshots/08-mobile-profile.png)
 
@@ -54,7 +53,6 @@ Mobile resolution: 390×844
 | Frontend Web | Next.js + Tailwind CSS |
 | Frontend Mobile | React Native / Expo |
 | File Uploads | python-multipart (avatars) |
-| Deployment | Docker + Docker Compose |
 
 ### Architecture
 
@@ -83,44 +81,32 @@ PostgreSQL Cache (4h TTL)
 Web UI + Mobile App (shows individual + final)
 ```
 
-## Deployment
+## How to Run
+
+### Local Development
+
+```bash
+# Backend
+pip install -r requirements.txt
+uvicorn app:app --reload --port 8000
+
+# Frontend (Web)
+cd frontend
+npm install
+npm run dev
+
+# Frontend (Mobile)
+cd mobile
+npm install
+npx expo start
+```
 
 ### Docker Deployment
 
 ```bash
-# Build and start
 ./deploy.sh build
 ./deploy.sh start
-
-# View logs
-./deploy.sh logs
-
-# Stop
-./deploy.sh stop
 ```
-
-**Services:**
-- **db** — PostgreSQL 16
-- **backend** — FastAPI on port 8000
-- **frontend** — Next.js on port 3000
-
-## Member System
-
-### Member Levels
-
-| Points | Level | Badge |
-|--------|-------|-------|
-| 0–99 | Entry | ⭐ |
-| 100–199 | Bronze | 🥉 |
-| 200–299 | Silver | 🥈 |
-| 300–399 | Gold | 🥇 |
-| 400–499 | Platinum | 💎 |
-| 500–999 | Diamond | 💠 |
-| 1000+ | Master | 👑 |
-
-### How to Earn Points
-- **Watch Ads** — Earn points by watching ads (simulated for demo)
-- **Purchase** — Buy points manually (simulated for demo)
 
 ## API Endpoints
 
@@ -153,53 +139,6 @@ React Native (Expo) mobile app in `mobile/` with full feature parity:
 | Register | Username/email/password + Google/Facebook OAuth |
 | Watchlist | Saved stocks (requires login) |
 | Profile | Avatar upload, display name, theme toggle, member card, earn/buy points |
-
-**Running the mobile app:**
-```bash
-cd mobile
-npm install
-npx expo start
-```
-
-## How to Run
-
-### Local Development
-
-```bash
-# Backend
-pip install -r requirements.txt
-uvicorn app:app --reload --port 8000
-
-# Frontend (Web)
-cd frontend
-npm install
-npm run dev
-
-# Frontend (Mobile)
-cd mobile
-npm install
-npx expo start
-```
-
-### Docker Deployment
-
-```bash
-./deploy.sh build
-./deploy.sh start
-```
-
-## Files for Chapter 4
-
-| File | Purpose |
-|------|---------|
-| `LICENSE` | MIT License |
-| `screenshots/` | Project screenshots |
-| `slides/pitch.md` | Product-intro slide deck |
-| `ch-4/report.md` | This report |
-| `Dockerfile` | Backend container |
-| `docker-compose.yml` | Multi-service orchestration |
-| `deploy.sh` | Deployment script |
-| `mobile/` | React Native (Expo) mobile app |
 
 ## Evidence — Claude Code Assets
 
