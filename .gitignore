@@ -1,0 +1,14 @@
+node_modules/
+.env
+.env.*
+vibe-key.env
+*.log
+dist/
+build/
+.DS_Store
+*.db
+__pycache__/
+frontend/.next/
+frontend/node_modules/
+mobile/node_modules/
+uploads/
