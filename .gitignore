@@ -1,4 +1,5 @@
 node_modules/
+.sh
 .env
 .env.*
 vibe-key.env
