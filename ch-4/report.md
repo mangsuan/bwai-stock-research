@@ -1,10 +1,31 @@
-# Chapter 4 — BWAI Stock Research Report
+# ch-4 Personal Project — Report
 
-## Project Overview
+github_username: mangsuan
+personal_repo_url: https://github.com/mangsuan/bwai-stock-research
+project_summary: BWAI (Buy With AI) is an AI-powered stock research assistant with multi-agent AI analysis, user profiles, member levels, and dark mode across web and mobile.
+slides_url: slides/pitch.md
+license: MIT
+live_url: http://localhost:3000
+download_url: N/A
 
-**BWAI (Buy With AI)** is an AI-powered stock research assistant that uses multiple AI agents to analyze stocks and provide balanced investment insights. It features user profiles, a gamified member system with tiered levels, and full dark mode support across web and mobile.
+## Screenshots
 
-**GitHub Repository:** https://github.com/mangsuan/bwai-stock-research
+Desktop resolution: 1280×800
+Mobile resolution: 390×844
+
+### Desktop Screenshots
+
+![Home page](screenshots/01-home.png)
+![Research results](screenshots/02-research.png)
+![Login page](screenshots/03-login.png)
+![Profile page](screenshots/04-profile.png)
+![Watchlist page](screenshots/05-watchlist.png)
+![API docs](screenshots/06-api-docs.png)
+
+### Mobile Screenshots
+
+![Mobile home](screenshots/07-mobile-home.png)
+![Mobile profile](screenshots/08-mobile-profile.png)
 
 ## What Was Built
 
@@ -66,14 +87,16 @@ Web UI + Mobile App (shows individual + final)
 
 ### Docker Deployment
 
-The application is containerized with Docker Compose:
-
 ```bash
-# Start the application
+# Build and start
+./deploy.sh build
 ./deploy.sh start
 
-# Or manually
-docker compose up -d
+# View logs
+./deploy.sh logs
+
+# Stop
+./deploy.sh stop
 ```
 
 **Services:**
@@ -81,58 +104,7 @@ docker compose up -d
 - **backend** — FastAPI on port 8000
 - **frontend** — Next.js on port 3000
 
-### Live URL
-
-- **Frontend:** http://localhost:3000
-- **Backend API:** http://localhost:8000
-- **API Documentation:** http://localhost:8000/docs
-
-## Definition of Done Status
-
-| Requirement | Status | Evidence |
-|-------------|--------|----------|
-| User login | ✅ | JWT + OAuth (Google, Facebook) |
-| Stock ticker search | ✅ | Yahoo Finance API integration |
-| AI research summary | ✅ | Multi-agent with 3 agents |
-| Bull vs Bear analysis | ✅ | Research page with cards |
-| "Why this stock today" | ✅ | Summary section |
-| Watchlist | ✅ | Add/remove per user |
-| Cached results (4h) | ✅ | PostgreSQL cache |
-| User profile | ✅ | Avatar upload, display name, theme |
-| Member system | ✅ | Points, 7 levels, earn/buy |
-| Dark mode | ✅ | Web + Mobile, synced via profile |
-| MCP | ✅ | `.mcp.json` |
-| Skill | ✅ | `.claude/skills/stock-analysis/SKILL.md` |
-| Agent | ✅ | `.claude/agents/stock-research-agent.md` |
-| README | ✅ | Complete with setup guide |
-| Backend deployed | ✅ | Docker Compose |
-| Web app deployed | ✅ | Docker Compose |
-| Mobile app (Android) | ✅ | React Native (Expo) in `mobile/` |
-| Mobile app (iOS) | ✅ | React Native (Expo) in `mobile/` |
-
-## Screenshots
-
-Screenshots are stored in the `screenshots/` directory:
-
-1. `home.png` — Home page with search bar
-2. `research.png` — Research results page
-3. `login.png` — Login page with OAuth
-4. `watchlist.png` — Watchlist page
-5. `profile.png` — Profile page with member card
-6. `api-docs.png` — Swagger API documentation
-
-## User Profile
-
-Users can customize their profile across web and mobile:
-
-- **Avatar Upload** — Upload a profile picture (stored in `uploads/avatars/`, max 5MB)
-- **Display Name** — Set a custom display name (falls back to username)
-- **Theme Toggle** — Switch between light and dark mode (synced via user profile)
-- **Username** — Shown as read-only (set at registration)
-
 ## Member System
-
-Gamified engagement system with tiered levels and a points economy:
 
 ### Member Levels
 
@@ -149,33 +121,6 @@ Gamified engagement system with tiered levels and a points economy:
 ### How to Earn Points
 - **Watch Ads** — Earn points by watching ads (simulated for demo)
 - **Purchase** — Buy points manually (simulated for demo)
-
-### Points Tracking
-- All transactions are recorded in the `point_transactions` table
-- Users can view their points history on the profile page
-- Level updates automatically when points cross a threshold
-
-## Mobile App
-
-React Native (Expo) mobile app in `mobile/` with full feature parity:
-
-| Screen | Features |
-|--------|----------|
-| Home | Search bar, quick tickers, "How it works" |
-| Research | Price card, bull/bear, agent analysis, watchlist button |
-| Login | Username/password + Google/Facebook OAuth |
-| Register | Username/email/password + Google/Facebook OAuth |
-| Watchlist | Saved stocks (requires login) |
-| Profile | Avatar upload, display name, theme toggle, member card, earn/buy points |
-
-**Running the mobile app:**
-```bash
-cd mobile
-npm install
-npx expo start
-```
-
-Scan the QR code with Expo Go on your phone.
 
 ## API Endpoints
 
@@ -196,18 +141,25 @@ Scan the QR code with Expo Go on your phone.
 | `POST /watchlist` | Add to watchlist |
 | `DELETE /watchlist/{ticker}` | Remove from watchlist |
 
-## Files Created for Chapter 4
+## Mobile App
 
-| File | Purpose |
-|------|---------|
-| `Dockerfile` | Backend container |
-| `frontend/Dockerfile` | Frontend container |
-| `docker-compose.yml` | Multi-service orchestration |
-| `deploy.sh` | Deployment script |
-| `.dockerignore` | Docker build exclusions |
-| `LICENSE` | MIT License |
-| `ch-4/report.md` | This report |
-| `mobile/` | React Native (Expo) mobile app |
+React Native (Expo) mobile app in `mobile/` with full feature parity:
+
+| Screen | Features |
+|--------|----------|
+| Home | Search bar, quick tickers, "How it works" |
+| Research | Price card, bull/bear, agent analysis, watchlist button |
+| Login | Username/password + Google/Facebook OAuth |
+| Register | Username/email/password + Google/Facebook OAuth |
+| Watchlist | Saved stocks (requires login) |
+| Profile | Avatar upload, display name, theme toggle, member card, earn/buy points |
+
+**Running the mobile app:**
+```bash
+cd mobile
+npm install
+npx expo start
+```
 
 ## How to Run
 
@@ -232,27 +184,33 @@ npx expo start
 ### Docker Deployment
 
 ```bash
-# Build and start
 ./deploy.sh build
 ./deploy.sh start
-
-# View logs
-./deploy.sh logs
-
-# Stop
-./deploy.sh stop
 ```
 
-## Conclusion
+## Files for Chapter 4
 
-BWAI is a fully functional stock research assistant with:
-- Multi-agent AI analysis for comprehensive insights
-- User authentication and watchlist features
-- User profiles with avatar upload and theme preferences
-- Gamified member system with 7 levels and points economy
-- Full dark mode support on web and mobile
-- React Native mobile app for iOS and Android
-- Docker deployment ready
-- Complete documentation
+| File | Purpose |
+|------|---------|
+| `LICENSE` | MIT License |
+| `screenshots/` | Project screenshots |
+| `slides/pitch.md` | Product-intro slide deck |
+| `ch-4/report.md` | This report |
+| `Dockerfile` | Backend container |
+| `docker-compose.yml` | Multi-service orchestration |
+| `deploy.sh` | Deployment script |
+| `mobile/` | React Native (Expo) mobile app |
 
-The application is ready for deployment and meets all Chapter 4 requirements.
+## Evidence — Claude Code Assets
+
+### MCP
+- path: `.mcp.json`
+- what: Filesystem MCP server for local stock data access
+
+### Skill
+- path: `.claude/skills/stock-analysis/SKILL.md`
+- what: Stock analysis skill for structured summaries
+
+### Agent
+- path: `.claude/agents/stock-research-agent.md`
+- what: Stock research agent for generating insights
