@@ -146,6 +146,7 @@ export default function ExplorePage() {
               value={query}
               onChange={(e) => handleSearch(e.target.value)}
               placeholder="Search by symbol or company name..."
+              aria-label="Search stocks by symbol or company name"
               className="w-full rounded-2xl border border-[#d2d2d7] dark:border-[#38383a] bg-white dark:bg-[#1d1d1f] px-6 py-4 text-lg text-[#1d1d1f] dark:text-[#f5f5f7] placeholder:text-[#86868b] focus:border-[#0071e3] focus:outline-none focus:ring-4 focus:ring-[#0071e3]/10 transition-all"
             />
             <svg

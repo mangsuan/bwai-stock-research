@@ -8,12 +8,13 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, API_BASE } from "@/lib/api";
 import MemberBadge from "@/components/MemberBadge";
 
 export default function ProfileScreen() {
@@ -180,9 +181,10 @@ export default function ProfileScreen() {
       {/* Avatar */}
       <TouchableOpacity onPress={handleAvatarUpload} disabled={uploading} style={styles.avatarWrapper}>
         {user.avatar_url ? (
-          <View style={[styles.avatarCircle, { borderColor: colors.cardBorder }]}>
-            <Text style={styles.avatarText}>{user.display_name?.charAt(0) || user.username.charAt(0)}</Text>
-          </View>
+          <Image
+            source={{ uri: user.avatar_url.startsWith("http") ? user.avatar_url : `${API_BASE}${user.avatar_url}` }}
+            style={[styles.avatarImage, { borderColor: colors.cardBorder }]}
+          />
         ) : (
           <View style={[styles.avatarCircle, { backgroundColor: colors.accent }]}>
             <Text style={styles.avatarInitial}>
@@ -330,6 +332,12 @@ const styles = StyleSheet.create({
     borderRadius: 48,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 3,
+  },
+  avatarImage: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     borderWidth: 3,
   },
   avatarInitial: { fontSize: 36, fontWeight: "600", color: "#ffffff" },

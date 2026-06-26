@@ -35,6 +35,12 @@ export default function Navbar() {
                 Explore
               </Link>
               <Link
+                href="/potential-stocks"
+                className="text-sm text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-colors"
+              >
+                ✨ Potential
+              </Link>
+              <Link
                 href="/watchlist"
                 className="text-sm text-[#6e6e73] dark:text-[#a1a1a6] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-colors"
               >

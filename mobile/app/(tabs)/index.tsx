@@ -11,12 +11,14 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { API_BASE } from "../../lib/api";
+import { useTheme } from "@/contexts/ThemeContext";
 
 const FALLBACK_TICKERS = ["AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "GOOG"];
 
 export default function HomeScreen() {
   const [ticker, setTicker] = useState("");
   const [quickTickers, setQuickTickers] = useState(FALLBACK_TICKERS);
+  const { colors } = useTheme();
   const router = useRouter();
 
   useEffect(() => {
@@ -39,14 +41,14 @@ export default function HomeScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Hero */}
         <View style={styles.hero}>
-          <Text style={styles.title}>BWAI</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.title, { color: colors.text }]}>BWAI</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
             Stock research powered by{"\n"}multiple AI agents
           </Text>
         </View>
@@ -54,9 +56,9 @@ export default function HomeScreen() {
         {/* Search */}
         <View style={styles.searchContainer}>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.card, borderColor: colors.cardBorder, color: colors.text }]}
             placeholder="Enter stock ticker (e.g., AAPL)"
-            placeholderTextColor="#86868b"
+            placeholderTextColor={colors.textMuted}
             value={ticker}
             onChangeText={setTicker}
             onSubmitEditing={handleSearch}
@@ -65,7 +67,7 @@ export default function HomeScreen() {
             returnKeyType="search"
           />
           <TouchableOpacity
-            style={[styles.button, !ticker.trim() && styles.buttonDisabled]}
+            style={[styles.button, { backgroundColor: colors.accent }, !ticker.trim() && styles.buttonDisabled]}
             onPress={handleSearch}
             disabled={!ticker.trim()}
           >
@@ -78,38 +80,38 @@ export default function HomeScreen() {
           {quickTickers.map((t) => (
             <TouchableOpacity
               key={t}
-              style={styles.tickerChip}
+              style={[styles.tickerChip, { backgroundColor: colors.card }]}
               onPress={() => router.push(`/research/${t}`)}
             >
-              <Text style={styles.tickerText}>{t}</Text>
+              <Text style={[styles.tickerText, { color: colors.text }]}>{t}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
         {/* Features */}
         <View style={styles.featuresContainer}>
-          <Text style={styles.featuresTitle}>How it works</Text>
+          <Text style={[styles.featuresTitle, { color: colors.text }]}>How it works</Text>
 
-          <View style={styles.featureCard}>
+          <View style={[styles.featureCard, { backgroundColor: colors.card }]}>
             <Text style={styles.featureIcon}>🔍</Text>
-            <Text style={styles.featureTitle}>Enter a Ticker</Text>
-            <Text style={styles.featureDesc}>
+            <Text style={[styles.featureTitle, { color: colors.text }]}>Enter a Ticker</Text>
+            <Text style={[styles.featureDesc, { color: colors.textSecondary }]}>
               Type any stock symbol to begin your research
             </Text>
           </View>
 
-          <View style={styles.featureCard}>
+          <View style={[styles.featureCard, { backgroundColor: colors.card }]}>
             <Text style={styles.featureIcon}>🤖</Text>
-            <Text style={styles.featureTitle}>AI Agents Analyze</Text>
-            <Text style={styles.featureDesc}>
+            <Text style={[styles.featureTitle, { color: colors.text }]}>AI Agents Analyze</Text>
+            <Text style={[styles.featureDesc, { color: colors.textSecondary }]}>
               Multiple AI agents research the stock in parallel
             </Text>
           </View>
 
-          <View style={styles.featureCard}>
+          <View style={[styles.featureCard, { backgroundColor: colors.card }]}>
             <Text style={styles.featureIcon}>📊</Text>
-            <Text style={styles.featureTitle}>Get Synthesis</Text>
-            <Text style={styles.featureDesc}>
+            <Text style={[styles.featureTitle, { color: colors.text }]}>Get Synthesis</Text>
+            <Text style={[styles.featureDesc, { color: colors.textSecondary }]}>
               A judge AI combines all feedback into one report
             </Text>
           </View>
@@ -122,7 +124,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#ffffff",
   },
   scrollContent: {
     flexGrow: 1,
@@ -136,12 +137,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 64,
     fontWeight: "600",
-    color: "#1d1d1f",
     letterSpacing: -2,
   },
   subtitle: {
     fontSize: 18,
-    color: "#6e6e73",
     textAlign: "center",
     marginTop: 12,
     lineHeight: 26,
@@ -150,18 +149,14 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   input: {
-    backgroundColor: "#fbfbfd",
     borderWidth: 1,
-    borderColor: "#d2d2d7",
     borderRadius: 16,
     padding: 18,
     fontSize: 17,
-    color: "#1d1d1f",
     textAlign: "center",
     marginBottom: 12,
   },
   button: {
-    backgroundColor: "#0071e3",
     borderRadius: 980,
     padding: 16,
     alignItems: "center",
@@ -182,7 +177,6 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   tickerChip: {
-    backgroundColor: "#f5f5f7",
     borderRadius: 980,
     paddingHorizontal: 20,
     paddingVertical: 10,
@@ -190,7 +184,6 @@ const styles = StyleSheet.create({
   tickerText: {
     fontSize: 15,
     fontWeight: "500",
-    color: "#1d1d1f",
   },
   featuresContainer: {
     gap: 16,
@@ -198,12 +191,10 @@ const styles = StyleSheet.create({
   featuresTitle: {
     fontSize: 28,
     fontWeight: "600",
-    color: "#1d1d1f",
     textAlign: "center",
     marginBottom: 8,
   },
   featureCard: {
-    backgroundColor: "#f5f5f7",
     borderRadius: 20,
     padding: 24,
     alignItems: "center",
@@ -215,12 +206,10 @@ const styles = StyleSheet.create({
   featureTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#1d1d1f",
     marginBottom: 6,
   },
   featureDesc: {
     fontSize: 15,
-    color: "#6e6e73",
     textAlign: "center",
     lineHeight: 22,
   },

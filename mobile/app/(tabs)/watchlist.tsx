@@ -11,6 +11,7 @@ import {
 import { useRouter } from "expo-router";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface WatchlistItem {
   ticker: string;
@@ -19,6 +20,7 @@ interface WatchlistItem {
 
 export default function WatchlistScreen() {
   const { user, token } = useAuth();
+  const { colors } = useTheme();
   const router = useRouter();
   const [items, setItems] = useState<WatchlistItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,12 +78,12 @@ export default function WatchlistScreen() {
 
   if (!user) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
         <Text style={styles.lockIcon}>🔒</Text>
-        <Text style={styles.lockTitle}>Sign in required</Text>
-        <Text style={styles.lockDesc}>Login to save your favorite stocks</Text>
+        <Text style={[styles.lockTitle, { color: colors.text }]}>Sign in required</Text>
+        <Text style={[styles.lockDesc, { color: colors.textSecondary }]}>Login to save your favorite stocks</Text>
         <TouchableOpacity
-          style={styles.signInButton}
+          style={[styles.signInButton, { backgroundColor: colors.accent }]}
           onPress={() => router.push("/login")}
         >
           <Text style={styles.signInText}>Sign In</Text>
@@ -91,13 +93,13 @@ export default function WatchlistScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Add ticker */}
       <View style={styles.addRow}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: colors.card, borderColor: colors.cardBorder, color: colors.text }]}
           placeholder="Add ticker (e.g., AAPL)"
-          placeholderTextColor="#86868b"
+          placeholderTextColor={colors.textMuted}
           value={newTicker}
           onChangeText={setNewTicker}
           onSubmitEditing={addTicker}
@@ -106,7 +108,7 @@ export default function WatchlistScreen() {
           returnKeyType="done"
         />
         <TouchableOpacity
-          style={[styles.addButton, !newTicker.trim() && styles.addButtonDisabled]}
+          style={[styles.addButton, { backgroundColor: colors.accent }, !newTicker.trim() && styles.addButtonDisabled]}
           onPress={addTicker}
           disabled={!newTicker.trim()}
         >
@@ -115,12 +117,12 @@ export default function WatchlistScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#0071e3" style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" color={colors.accent} style={{ marginTop: 40 }} />
       ) : items.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyIcon}>⭐</Text>
-          <Text style={styles.emptyTitle}>No stocks yet</Text>
-          <Text style={styles.emptyDesc}>Add some tickers to start tracking</Text>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>No stocks yet</Text>
+          <Text style={[styles.emptyDesc, { color: colors.textSecondary }]}>Add some tickers to start tracking</Text>
         </View>
       ) : (
         <FlatList
@@ -129,17 +131,17 @@ export default function WatchlistScreen() {
           contentContainerStyle={styles.list}
           renderItem={({ item }) => (
             <TouchableOpacity
-              style={styles.card}
+              style={[styles.card, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
               onPress={() => router.push(`/research/${item.ticker}`)}
             >
               <View style={styles.cardLeft}>
-                <View style={styles.cardIcon}>
-                  <Text style={styles.cardIconText}>{item.ticker.charAt(0)}</Text>
+                <View style={[styles.cardIcon, { backgroundColor: colors.card }]}>
+                  <Text style={[styles.cardIconText, { color: colors.text }]}>{item.ticker.charAt(0)}</Text>
                 </View>
                 <View>
-                  <Text style={styles.cardTicker}>{item.ticker}</Text>
+                  <Text style={[styles.cardTicker, { color: colors.accent }]}>{item.ticker}</Text>
                   {item.added_at && (
-                    <Text style={styles.cardDate}>
+                    <Text style={[styles.cardDate, { color: colors.textMuted }]}>
                       Added {new Date(item.added_at).toLocaleDateString()}
                     </Text>
                   )}
@@ -149,7 +151,7 @@ export default function WatchlistScreen() {
                 onPress={() => removeTicker(item.ticker)}
                 style={styles.removeBtn}
               >
-                <Text style={styles.removeText}>✕</Text>
+                <Text style={[styles.removeText, { color: colors.textMuted }]}>✕</Text>
               </TouchableOpacity>
             </TouchableOpacity>
           )}
@@ -160,41 +162,36 @@ export default function WatchlistScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#ffffff", padding: 16 },
+  container: { flex: 1, padding: 16 },
   centered: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
   lockIcon: { fontSize: 48, marginBottom: 16 },
-  lockTitle: { fontSize: 22, fontWeight: "600", color: "#1d1d1f", marginBottom: 8 },
-  lockDesc: { fontSize: 15, color: "#6e6e73", marginBottom: 24 },
-  signInButton: { backgroundColor: "#0071e3", borderRadius: 980, paddingHorizontal: 32, paddingVertical: 14 },
+  lockTitle: { fontSize: 22, fontWeight: "600", marginBottom: 8 },
+  lockDesc: { fontSize: 15, marginBottom: 24 },
+  signInButton: { borderRadius: 980, paddingHorizontal: 32, paddingVertical: 14 },
   signInText: { color: "#ffffff", fontSize: 17, fontWeight: "500" },
   addRow: { flexDirection: "row", gap: 10, marginBottom: 20 },
   input: {
     flex: 1,
-    backgroundColor: "#fbfbfd",
     borderWidth: 1,
-    borderColor: "#d2d2d7",
     borderRadius: 16,
     padding: 14,
     fontSize: 17,
-    color: "#1d1d1f",
     fontFamily: "SpaceMono",
   },
-  addButton: { backgroundColor: "#0071e3", borderRadius: 980, paddingHorizontal: 24, justifyContent: "center" },
+  addButton: { borderRadius: 980, paddingHorizontal: 24, justifyContent: "center" },
   addButtonDisabled: { opacity: 0.4 },
   addButtonText: { color: "#ffffff", fontSize: 15, fontWeight: "500" },
   empty: { alignItems: "center", marginTop: 60 },
   emptyIcon: { fontSize: 48, marginBottom: 16 },
-  emptyTitle: { fontSize: 20, fontWeight: "600", color: "#1d1d1f", marginBottom: 8 },
-  emptyDesc: { fontSize: 15, color: "#6e6e73" },
+  emptyTitle: { fontSize: 20, fontWeight: "600", marginBottom: 8 },
+  emptyDesc: { fontSize: 15 },
   list: { gap: 12 },
   card: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#ffffff",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#d2d2d7",
     padding: 16,
   },
   cardLeft: { flexDirection: "row", alignItems: "center", gap: 14 },
@@ -202,13 +199,12 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: "#f5f5f7",
     alignItems: "center",
     justifyContent: "center",
   },
-  cardIconText: { fontSize: 20, fontWeight: "600", color: "#1d1d1f", fontFamily: "SpaceMono" },
-  cardTicker: { fontSize: 18, fontWeight: "600", color: "#0071e3", fontFamily: "SpaceMono" },
-  cardDate: { fontSize: 12, color: "#86868b", marginTop: 2 },
+  cardIconText: { fontSize: 20, fontWeight: "600", fontFamily: "SpaceMono" },
+  cardTicker: { fontSize: 18, fontWeight: "600", fontFamily: "SpaceMono" },
+  cardDate: { fontSize: 12, marginTop: 2 },
   removeBtn: { padding: 8 },
-  removeText: { fontSize: 16, color: "#86868b" },
+  removeText: { fontSize: 16 },
 });

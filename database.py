@@ -180,6 +180,55 @@ class PointTransaction(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+# ---------- Potential Stocks ----------
+
+
+class PotentialStockRun(Base):
+    """A daily potential stocks discovery run."""
+    __tablename__ = "potential_stock_runs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    run_date = Column(DateTime(timezone=True), nullable=False, index=True)
+    status = Column(String(20), nullable=False, server_default="running")  # running, completed, failed
+    stocks_analyzed = Column(Integer, server_default="0")
+    picks_generated = Column(Integer, server_default="0")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class PotentialStockPick(Base):
+    """An individual stock pick from a discovery run."""
+    __tablename__ = "potential_stock_picks"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    run_id = Column(Integer, ForeignKey("potential_stock_runs.id"), nullable=False, index=True)
+    ticker = Column(String(10), nullable=False, index=True)
+    company_name = Column(String(200), nullable=True)
+    sector = Column(String(100), nullable=True)
+    price_at_pick = Column(Float, nullable=True)
+    potential_score = Column(Float, nullable=False)
+    confidence = Column(Float, nullable=True)
+    category = Column(String(30), nullable=True)  # Exceptional, High Conviction, Strong, Watchlist
+    ai_summary = Column(Text, nullable=True)
+    why_hidden = Column(Text, nullable=True)
+    what_changed = Column(Text, nullable=True)
+    growth_drivers = Column(Text, nullable=True)  # JSON array
+    catalysts = Column(Text, nullable=True)  # JSON array
+    risks = Column(Text, nullable=True)  # JSON array
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class PotentialStockAgentScore(Base):
+    """Per-agent score breakdown for a pick."""
+    __tablename__ = "potential_stock_agent_scores"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    pick_id = Column(Integer, ForeignKey("potential_stock_picks.id"), nullable=False, index=True)
+    agent_name = Column(String(50), nullable=False)
+    score = Column(Float, nullable=False)
+    explanation = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 # Cache TTL in hours
 CACHE_TTL_HOURS = int(os.getenv("CACHE_TTL_HOURS", "4"))
 
@@ -741,3 +790,193 @@ async def get_point_history(user_id: int) -> list[dict]:
             }
             for r in rows
         ]
+
+
+# ---------- Potential Stocks CRUD ----------
+
+
+async def create_potential_run() -> dict:
+    """Create a new discovery run and return it."""
+    async with async_session() as session:
+        run = PotentialStockRun(
+            run_date=datetime.now(timezone.utc),
+            status="running",
+        )
+        session.add(run)
+        await session.commit()
+        await session.refresh(run)
+        return {"id": run.id, "run_date": run.run_date.isoformat(), "status": run.status}
+
+
+async def complete_potential_run(run_id: int, stocks_analyzed: int, picks_generated: int):
+    """Mark a discovery run as completed."""
+    async with async_session() as session:
+        run = await session.get(PotentialStockRun, run_id)
+        if run:
+            run.status = "completed"
+            run.stocks_analyzed = stocks_analyzed
+            run.picks_generated = picks_generated
+            await session.commit()
+
+
+async def fail_potential_run(run_id: int):
+    """Mark a discovery run as failed."""
+    async with async_session() as session:
+        run = await session.get(PotentialStockRun, run_id)
+        if run:
+            run.status = "failed"
+            await session.commit()
+
+
+async def save_potential_pick(run_id: int, pick: dict) -> int:
+    """Save a stock pick and its agent scores. Returns pick id."""
+    import json
+
+    async with async_session() as session:
+        p = PotentialStockPick(
+            run_id=run_id,
+            ticker=pick["ticker"],
+            company_name=pick.get("company_name"),
+            sector=pick.get("sector"),
+            price_at_pick=pick.get("price"),
+            potential_score=pick["potential_score"],
+            confidence=pick.get("confidence"),
+            category=pick.get("category"),
+            ai_summary=pick.get("ai_summary"),
+            why_hidden=pick.get("why_hidden"),
+            what_changed=pick.get("what_changed"),
+            growth_drivers=json.dumps(pick.get("growth_drivers", [])),
+            catalysts=json.dumps(pick.get("catalysts", [])),
+            risks=json.dumps(pick.get("risks", [])),
+        )
+        session.add(p)
+        await session.commit()
+        await session.refresh(p)
+
+        # Save agent scores
+        for agent in pick.get("agent_scores", []):
+            s = PotentialStockAgentScore(
+                pick_id=p.id,
+                agent_name=agent["agent_name"],
+                score=agent["score"],
+                explanation=agent.get("explanation"),
+            )
+            session.add(s)
+        await session.commit()
+        return p.id
+
+
+async def get_todays_picks() -> list[dict]:
+    """Get the most recent run's picks."""
+    from sqlalchemy import select
+    import json
+
+    async with async_session() as session:
+        # Get most recent completed run
+        stmt = (
+            select(PotentialStockRun)
+            .where(PotentialStockRun.status == "completed")
+            .order_by(PotentialStockRun.created_at.desc())
+            .limit(1)
+        )
+        result = await session.execute(stmt)
+        run = result.scalars().first()
+        if not run:
+            return []
+
+        # Get picks for this run
+        stmt = (
+            select(PotentialStockPick)
+            .where(PotentialStockPick.run_id == run.id)
+            .order_by(PotentialStockPick.potential_score.desc())
+        )
+        result = await session.execute(stmt)
+        picks = result.scalars().all()
+
+        return [_pick_to_dict(p, json) for p in picks]
+
+
+async def get_pick_by_ticker(ticker: str) -> dict | None:
+    """Get the most recent pick for a specific ticker."""
+    from sqlalchemy import select
+    import json
+
+    async with async_session() as session:
+        stmt = (
+            select(PotentialStockPick)
+            .where(PotentialStockPick.ticker == ticker.upper())
+            .order_by(PotentialStockPick.created_at.desc())
+            .limit(1)
+        )
+        result = await session.execute(stmt)
+        pick = result.scalars().first()
+        if not pick:
+            return None
+
+        # Get agent scores
+        stmt = (
+            select(PotentialStockAgentScore)
+            .where(PotentialStockAgentScore.pick_id == pick.id)
+        )
+        result = await session.execute(stmt)
+        scores = result.scalars().all()
+
+        d = _pick_to_dict(pick, json)
+        d["agent_scores"] = [
+            {
+                "agent_name": s.agent_name,
+                "score": s.score,
+                "explanation": s.explanation,
+            }
+            for s in scores
+        ]
+        return d
+
+
+async def get_potential_history(limit: int = 20, offset: int = 0) -> list[dict]:
+    """Get past discovery runs."""
+    from sqlalchemy import select
+
+    async with async_session() as session:
+        stmt = (
+            select(PotentialStockRun)
+            .where(PotentialStockRun.status == "completed")
+            .order_by(PotentialStockRun.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        result = await session.execute(stmt)
+        runs = result.scalars().all()
+
+        return [
+            {
+                "id": r.id,
+                "run_date": r.run_date.isoformat() if r.run_date else None,
+                "status": r.status,
+                "stocks_analyzed": r.stocks_analyzed,
+                "picks_generated": r.picks_generated,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in runs
+        ]
+
+
+def _pick_to_dict(p, json_module) -> dict:
+    """Convert a PotentialStockPick to a dict."""
+    return {
+        "id": p.id,
+        "ticker": p.ticker,
+        "company_name": p.company_name,
+        "sector": p.sector,
+        "price_at_pick": p.price_at_pick,
+        "potential_score": p.potential_score,
+        "confidence": p.confidence,
+        "category": p.category,
+        "ai_summary": p.ai_summary,
+        "why_hidden": p.why_hidden,
+        "what_changed": p.what_changed,
+        "growth_drivers": json_module.loads(p.growth_drivers) if p.growth_drivers else [],
+        "catalysts": json_module.loads(p.catalysts) if p.catalysts else [],
+        "risks": json_module.loads(p.risks) if p.risks else [],
+        "created_at": p.created_at.isoformat() if p.created_at else None,
+    }

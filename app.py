@@ -1,8 +1,8 @@
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 import httpx
 import json
 import os
@@ -21,6 +21,8 @@ from database import (
     add_to_watchlist, remove_from_watchlist, get_watchlist, is_in_watchlist,
     update_user_profile, update_user_avatar, get_user_full,
     add_points, get_member_points, get_point_history,
+    create_potential_run, complete_potential_run, fail_potential_run,
+    save_potential_pick, get_todays_picks, get_pick_by_ticker, get_potential_history,
 )
 
 load_dotenv()
@@ -333,7 +335,7 @@ async def list_stocks(q: str = "", page: int = 1, per_page: int = 50):
         page: Page number (1-based)
         per_page: Items per page (default 50, max 200)
     """
-    per_page = min(per_page, 200)
+    per_page = max(1, min(per_page, 200))
     page = max(page, 1)
 
     stocks = await _fetch_stock_list()
@@ -460,6 +462,14 @@ class RegisterRequest(BaseModel):
     email: str
     password: str
 
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        import re
+        if not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", v):
+            raise ValueError("Invalid email format")
+        return v
+
 
 class LoginRequest(BaseModel):
     username: str
@@ -580,7 +590,10 @@ async def upload_avatar(file: UploadFile = File(...), user: dict = Depends(requi
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
 
-    ext = file.filename.split(".")[-1] if file.filename and "." in file.filename else "jpg"
+    ALLOWED_AVATAR_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp"}
+    ext = file.filename.split(".")[-1].lower() if file.filename and "." in file.filename else "jpg"
+    if ext not in ALLOWED_AVATAR_EXTENSIONS:
+        ext = "jpg"
     filename = f"{user['id']}_{uuid.uuid4().hex[:8]}.{ext}"
     filepath = os.path.join(UPLOADS_DIR, filename)
 
@@ -627,8 +640,8 @@ async def get_my_points(user: dict = Depends(require_user)):
 @app.post("/member/points/earn", response_model=MemberPointsResponse)
 async def earn_points(req: PointsEarnRequest, user: dict = Depends(require_user)):
     """Earn points (e.g., from watching ads)."""
-    if req.amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be positive")
+    if req.amount <= 0 or req.amount > 10000:
+        raise HTTPException(status_code=400, detail="Amount must be between 1 and 10000")
     try:
         return await add_points(user["id"], req.amount, "ad_reward", req.description)
     except ValueError as e:
@@ -638,10 +651,10 @@ async def earn_points(req: PointsEarnRequest, user: dict = Depends(require_user)
 @app.post("/member/points/purchase", response_model=MemberPointsResponse)
 async def purchase_points(req: PointsEarnRequest, user: dict = Depends(require_user)):
     """Purchase points manually."""
-    if req.amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be positive")
+    if req.amount <= 0 or req.amount > 100000:
+        raise HTTPException(status_code=400, detail="Amount must be between 1 and 100000")
     try:
-        return await add_points(user["id"], req.amount, "purchase", "Manual purchase")
+        return await add_points(user["id"], req.amount, "purchase", req.description or "Manual purchase")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -665,7 +678,7 @@ async def google_login():
 
 
 @app.get("/auth/google/callback")
-async def google_callback(request):
+async def google_callback(request: Request):
     """Handle Google OAuth callback."""
     if not GOOGLE_CLIENT_ID:
         raise HTTPException(status_code=501, detail="Google OAuth not configured")
@@ -698,7 +711,7 @@ async def facebook_login():
 
 
 @app.get("/auth/facebook/callback")
-async def facebook_callback(request):
+async def facebook_callback(request: Request):
     """Handle Facebook OAuth callback."""
     if not FACEBOOK_CLIENT_ID:
         raise HTTPException(status_code=501, detail="Facebook OAuth not configured")
@@ -742,6 +755,14 @@ async def get_auth_providers():
 
 class WatchlistAddRequest(BaseModel):
     ticker: str
+
+    @field_validator("ticker")
+    @classmethod
+    def validate_ticker(cls, v: str) -> str:
+        v = v.strip().upper()
+        if not v or len(v) > 10:
+            raise ValueError("Ticker must be 1-10 characters")
+        return v
 
 
 class WatchlistItem(BaseModel):
@@ -1064,6 +1085,346 @@ def _generate_heuristic_research(stock_data: dict) -> StockResearch:
         conclusion="Automated snapshot. Further research recommended.",
         agents_used=["heuristic"], agent_analyses=[],
     )
+
+
+# ---------- Potential Stocks Discovery ----------
+
+
+POTENTIAL_AGENTS = [
+    {
+        "name": "fundamental",
+        "model": "deepseek-flash",
+        "role": "Analyze revenue growth, margins, cash flow, debt, balance sheet strength.",
+        "prompt": (
+            "Analyze the stock's fundamentals. Return ONLY valid JSON:\n"
+            '{"score": <0-100>, "explanation": "<1-2 sentences>"}\n'
+            "Score based on: revenue growth, profit margins, cash flow, debt levels, balance sheet health."
+        ),
+    },
+    {
+        "name": "growth",
+        "model": "mimo-v2.5",
+        "role": "Analyze industry growth, expansion opportunities, competitive advantage.",
+        "prompt": (
+            "Analyze the stock's growth potential. Return ONLY valid JSON:\n"
+            '{"score": <0-100>, "explanation": "<1-2 sentences>"}\n'
+            "Score based on: industry growth rate, market expansion opportunities, product innovation, competitive moat."
+        ),
+    },
+    {
+        "name": "valuation",
+        "model": "mimo-v2.5",
+        "role": "Analyze PE, PB, EV/EBITDA, price-to-sales relative to peers.",
+        "prompt": (
+            "Analyze the stock's valuation. Return ONLY valid JSON:\n"
+            '{"score": <0-100>, "explanation": "<1-2 sentences>"}\n'
+            "Score HIGH if undervalued relative to peers and growth. Score LOW if overvalued."
+        ),
+    },
+    {
+        "name": "hidden_gem",
+        "model": "mimo-v2.5-pro",
+        "role": "Determine why this stock is not yet popular and what makes it hidden.",
+        "prompt": (
+            "Determine if this is a hidden gem stock. Return ONLY valid JSON:\n"
+            '{"score": <0-100>, "explanation": "<1-2 sentences>", "why_hidden": "<1-2 sentences explaining why the market has not noticed this stock>"}\n'
+            "Score HIGH if: low analyst coverage, low institutional ownership, operates in niche industry, recently listed, market attention focused elsewhere, ignored due to temporary sector weakness.\n"
+            "The why_hidden field MUST explain specifically why this stock is underfollowed or overlooked."
+        ),
+    },
+    {
+        "name": "change",
+        "model": "mimo-v2.5-pro",
+        "role": "Detect what recently changed that could be a catalyst.",
+        "prompt": (
+            "Detect recent positive changes for this stock. Return ONLY valid JSON:\n"
+            '{"score": <0-100>, "explanation": "<1-2 sentences>", "what_changed": "<1-2 sentences describing the most important recent change>"}\n'
+            "Look for: revenue acceleration, profitability improvement, debt reduction, new contracts, management changes, guidance raises, product launches.\n"
+            "The what_changed field MUST describe a specific recent positive change."
+        ),
+    },
+]
+
+
+async def _call_potential_agent(agent: dict, stock_context: str, company_name: str) -> dict | None:
+    """Call a single potential stocks agent. Returns parsed result or None."""
+    try:
+        result, _ = await _call_ai_agent(
+            agent_name=agent["name"],
+            model=agent["model"],
+            stock_context=stock_context,
+            company_name=company_name,
+        )
+        # Override system prompt with agent-specific prompt for more targeted analysis
+        start = time.time()
+        async with httpx.AsyncClient(timeout=90) as client:
+            resp = await client.post(
+                AI_API_URL,
+                headers={"Authorization": f"Bearer {AI_API_KEY}", "Content-Type": "application/json"},
+                json={
+                    "model": agent["model"],
+                    "messages": [
+                        {"role": "system", "content": "You are a stock analyst. Respond with ONLY valid JSON. No markdown, no code fences."},
+                        {"role": "user", "content": f"Stock data: {stock_context}\n\n{agent['prompt']}"},
+                    ],
+                    "max_tokens": 1024,
+                    "temperature": 0.3,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            content = data["choices"][0]["message"]["content"]
+            parsed = _parse_ai_response(content)
+            parsed["agent_name"] = agent["name"]
+            return parsed
+    except Exception as e:
+        print(f"Potential agent {agent['name']} error: {e}")
+        return None
+
+
+def _calculate_potential_score(agent_results: list[dict]) -> tuple[float, float]:
+    """Calculate weighted potential score and confidence from agent results."""
+    weights = {
+        "fundamental": 0.25,
+        "growth": 0.20,
+        "valuation": 0.15,
+        "hidden_gem": 0.20,
+        "change": 0.20,
+    }
+    total_weight = 0
+    weighted_sum = 0
+    for r in agent_results:
+        name = r.get("agent_name", "")
+        score = r.get("score", 0)
+        if isinstance(score, (int, float)) and 0 <= score <= 100:
+            w = weights.get(name, 0.1)
+            weighted_sum += score * w
+            total_weight += w
+
+    if total_weight == 0:
+        return 0, 0
+
+    potential_score = round(weighted_sum / total_weight, 1)
+    # Confidence based on how many agents responded and score consistency
+    confidence = round(min(100, total_weight * 100 * 0.8 + 20), 1)
+    return potential_score, confidence
+
+
+def _get_category(score: float) -> str:
+    """Get category label from potential score."""
+    if score >= 95:
+        return "Exceptional Opportunity"
+    elif score >= 90:
+        return "High Conviction"
+    elif score >= 80:
+        return "Strong Opportunity"
+    elif score >= 70:
+        return "Watchlist Candidate"
+    return "Below Threshold"
+
+
+async def _analyze_single_stock(stock_data: dict) -> dict | None:
+    """Run all potential agents on a single stock. Returns pick dict or None."""
+    context = _build_stock_context(stock_data)
+    company_name = stock_data.get("company_name", "Unknown")
+
+    # Run all agents in parallel
+    tasks = [_call_potential_agent(agent, context, company_name) for agent in POTENTIAL_AGENTS]
+    results = await asyncio.gather(*tasks)
+    agent_results = [r for r in results if r is not None]
+
+    if len(agent_results) < 2:
+        return None  # Need at least 2 agents to proceed
+
+    potential_score, confidence = _calculate_potential_score(agent_results)
+    if potential_score < 70:
+        return None  # Below threshold
+
+    # Extract key fields from specific agents
+    why_hidden = ""
+    what_changed = ""
+    growth_drivers = []
+    catalysts = []
+    risks = []
+
+    for r in agent_results:
+        if r.get("agent_name") == "hidden_gem":
+            why_hidden = r.get("why_hidden", r.get("explanation", ""))
+        if r.get("agent_name") == "change":
+            what_changed = r.get("what_changed", r.get("explanation", ""))
+
+    # Use the highest-scoring agent's explanation as growth driver
+    sorted_agents = sorted(agent_results, key=lambda x: x.get("score", 0), reverse=True)
+    if sorted_agents:
+        growth_drivers = [sorted_agents[0].get("explanation", "")]
+
+    return {
+        "ticker": stock_data.get("ticker", ""),
+        "company_name": company_name,
+        "sector": stock_data.get("sector", "Unknown"),
+        "price": stock_data.get("price"),
+        "potential_score": potential_score,
+        "confidence": confidence,
+        "category": _get_category(potential_score),
+        "ai_summary": "",  # Will be filled by judge
+        "why_hidden": why_hidden or "Low market awareness and limited analyst coverage.",
+        "what_changed": what_changed or "Recent positive developments in fundamentals.",
+        "growth_drivers": growth_drivers,
+        "catalysts": catalysts,
+        "risks": risks,
+        "agent_scores": [
+            {"agent_name": r.get("agent_name", ""), "score": r.get("score", 0), "explanation": r.get("explanation", "")}
+            for r in agent_results
+        ],
+    }
+
+
+async def _generate_pick_summary(pick: dict, stock_data: dict) -> str:
+    """Use judge AI to generate a summary for a pick."""
+    try:
+        context = _build_stock_context(stock_data)
+        prompt = (
+            f"Stock: {pick['company_name']} ({pick['ticker']})\n"
+            f"Data: {context}\n"
+            f"Potential Score: {pick['potential_score']}/100\n"
+            f"Why Hidden: {pick['why_hidden']}\n"
+            f"What Changed: {pick['what_changed']}\n\n"
+            "Write a 2-3 sentence investment thesis explaining why this stock has potential. "
+            "Be specific and factual. Return ONLY the text, no JSON, no markdown."
+        )
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                AI_API_URL,
+                headers={"Authorization": f"Bearer {AI_API_KEY}", "Content-Type": "application/json"},
+                json={
+                    "model": JUDGE_MODEL,
+                    "messages": [
+                        {"role": "system", "content": "You are a senior stock analyst. Write concise, factual investment summaries."},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "max_tokens": 512,
+                    "temperature": 0.2,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data["choices"][0]["message"]["content"].strip()
+    except Exception:
+        return pick.get("ai_summary", f"{pick['company_name']} shows strong potential based on AI analysis.")
+
+
+async def run_potential_stocks_discovery(max_stocks: int = 30) -> dict:
+    """Run the full potential stocks discovery pipeline."""
+    run = await create_potential_run()
+    run_id = run["id"]
+
+    try:
+        # 1. Fetch stock universe
+        stock_list = await _fetch_stock_list()
+        if not stock_list:
+            await fail_potential_run(run_id)
+            return {"status": "failed", "error": "Could not fetch stock list"}
+
+        # 2. Sample candidates (diverse selection)
+        import random
+        candidates = random.sample(stock_list, min(max_stocks, len(stock_list)))
+
+        # 3. Fetch market data for candidates
+        stock_data_map = {}
+        for c in candidates:
+            ticker = c.get("symbol", "")
+            if not ticker:
+                continue
+            try:
+                data = await fetch_stock_data(ticker)
+                if data and data.get("price"):
+                    data["ticker"] = ticker
+                    stock_data_map[ticker] = data
+            except Exception:
+                continue
+
+        # 4. Analyze each stock
+        picks = []
+        for ticker, data in stock_data_map.items():
+            pick = await _analyze_single_stock(data)
+            if pick:
+                # Generate summary
+                pick["ai_summary"] = await _generate_pick_summary(pick, data)
+                picks.append(pick)
+
+        # 5. Sort by score and take top 10
+        picks.sort(key=lambda x: x["potential_score"], reverse=True)
+        top_picks = picks[:10]
+
+        # 6. Save to database
+        for pick in top_picks:
+            await save_potential_pick(run_id, pick)
+
+        await complete_potential_run(run_id, len(stock_data_map), len(top_picks))
+
+        return {
+            "status": "completed",
+            "run_id": run_id,
+            "stocks_analyzed": len(stock_data_map),
+            "picks_generated": len(top_picks),
+            "picks": top_picks,
+        }
+
+    except Exception as e:
+        await fail_potential_run(run_id)
+        return {"status": "failed", "error": str(e)}
+
+
+# ---------- Potential Stocks Endpoints ----------
+
+
+class PotentialPickResponse(BaseModel):
+    id: int
+    ticker: str
+    company_name: str | None = None
+    sector: str | None = None
+    price_at_pick: float | None = None
+    potential_score: float
+    confidence: float | None = None
+    category: str | None = None
+    ai_summary: str | None = None
+    why_hidden: str | None = None
+    what_changed: str | None = None
+    growth_drivers: list[str] = []
+    catalysts: list[str] = []
+    risks: list[str] = []
+    agent_scores: list[dict] = []
+    created_at: str | None = None
+
+
+@app.get("/potential-stocks/today", response_model=list[PotentialPickResponse])
+async def get_todays_potential_stocks():
+    """Get today's potential stock picks (or most recent run)."""
+    return await get_todays_picks()
+
+
+@app.get("/potential-stocks/history")
+async def get_potential_stocks_history(limit: int = 20, offset: int = 0):
+    """Browse past discovery runs."""
+    limit = max(1, min(limit, 100))
+    return await get_potential_history(limit=limit, offset=offset)
+
+
+@app.get("/potential-stocks/{ticker}", response_model=PotentialPickResponse)
+async def get_potential_stock_detail(ticker: str):
+    """Get detailed potential stock analysis for a ticker."""
+    pick = await get_pick_by_ticker(ticker)
+    if not pick:
+        raise HTTPException(status_code=404, detail="No potential stock data found for this ticker")
+    return pick
+
+
+@app.post("/potential-stocks/run")
+async def trigger_potential_stocks_run(max_stocks: int = 30):
+    """Manually trigger a potential stocks discovery run."""
+    max_stocks = max(5, min(max_stocks, 100))
+    result = await run_potential_stocks_discovery(max_stocks=max_stocks)
+    return result
 
 
 if __name__ == "__main__":
