@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -19,21 +19,21 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [pointsInfo, setPointsInfo] = useState<any>(null);
-  const [pointsHistory, setPointsHistory] = useState<any[]>([]);
+  const [pointsInfo, setPointsInfo] = useState<Record<string, unknown> | null>(null);
+  const [pointsHistory, setPointsHistory] = useState<Record<string, unknown>[]>([]);
   const [buyAmount, setBuyAmount] = useState(50);
   const [earnAmount, setEarnAmount] = useState(10);
 
   // Initialize form when user loads
-  useState(() => {
+  useEffect(() => {
     if (user) {
       setDisplayName(user.display_name || "");
       setUsername(user.username);
     }
-  });
+  }, [user]);
 
   // Fetch points info
-  useState(() => {
+  useEffect(() => {
     if (token) {
       fetch(`${API_BASE}/member/points`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -49,7 +49,7 @@ export default function ProfilePage() {
         .then(setPointsHistory)
         .catch(() => {});
     }
-  });
+  }, [token]);
 
   if (isLoading) {
     return (

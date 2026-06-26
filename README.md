@@ -33,6 +33,7 @@ Web UI + Mobile App (shows individual + final)
 
 - **Multi-Agent Analysis**: 3 AI agents analyze each stock in parallel
 - **Judge Synthesis**: A judge AI combines all feedback into a balanced final assessment
+- **Potential Stocks**: AI-powered hidden gem discovery — finds underfollowed stocks with strong growth potential
 - **Real-Time Data**: Yahoo Finance API for live prices and market metrics
 - **Caching**: PostgreSQL cache with 4-hour TTL for fast repeat lookups
 - **Individual Views**: See what each AI agent thinks alongside the final synthesis
@@ -134,6 +135,11 @@ Scan the QR code with Expo Go on your phone.
 | `GET /watchlist` | Get user's watchlist |
 | `POST /watchlist` | Add ticker to watchlist |
 | `DELETE /watchlist/{ticker}` | Remove from watchlist |
+| `GET /watchlist/{ticker}/check` | Check if ticker is in watchlist |
+| `GET /potential-stocks/today` | Get latest potential stock picks |
+| `GET /potential-stocks/history` | Browse past discovery runs |
+| `GET /potential-stocks/{ticker}` | Get detailed pick with agent scores |
+| `POST /potential-stocks/run` | Trigger discovery run |
 | `GET /docs` | Swagger UI |
 
 ## Member Levels
@@ -162,8 +168,13 @@ bwai-stock-research/
 │       │   ├── page.tsx              # Home page
 │       │   ├── login/page.tsx        # Login page
 │       │   ├── register/page.tsx     # Register page
+│       │   ├── explore/page.tsx      # Stock explorer
 │       │   ├── watchlist/page.tsx    # Watchlist page
 │       │   ├── profile/page.tsx      # Profile page
+│       │   ├── potential-stocks/
+│       │   │   ├── page.tsx          # Potential stocks listing
+│       │   │   └── [ticker]/
+│       │   │       └── page.tsx      # Potential stock detail
 │       │   └── research/[ticker]/
 │       │       └── page.tsx          # Research results
 │       ├── components/
@@ -208,6 +219,7 @@ bwai-stock-research/
 | Stock ticker search | ✅ Yahoo Finance |
 | AI research summary | ✅ Multi-agent |
 | Bull vs Bear analysis | ✅ Research page |
+| Potential Stocks | ✅ AI hidden gem discovery |
 | Watchlist | ✅ Add/remove |
 | Cache (4h TTL) | ✅ PostgreSQL |
 | User profile | ✅ Avatar, display name, theme |

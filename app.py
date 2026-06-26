@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, field_validator
 import httpx
 import json
 import os
@@ -1149,14 +1149,6 @@ POTENTIAL_AGENTS = [
 async def _call_potential_agent(agent: dict, stock_context: str, company_name: str) -> dict | None:
     """Call a single potential stocks agent. Returns parsed result or None."""
     try:
-        result, _ = await _call_ai_agent(
-            agent_name=agent["name"],
-            model=agent["model"],
-            stock_context=stock_context,
-            company_name=company_name,
-        )
-        # Override system prompt with agent-specific prompt for more targeted analysis
-        start = time.time()
         async with httpx.AsyncClient(timeout=90) as client:
             resp = await client.post(
                 AI_API_URL,
@@ -1205,8 +1197,19 @@ def _calculate_potential_score(agent_results: list[dict]) -> tuple[float, float]
         return 0, 0
 
     potential_score = round(weighted_sum / total_weight, 1)
-    # Confidence based on how many agents responded and score consistency
-    confidence = round(min(100, total_weight * 100 * 0.8 + 20), 1)
+
+    # Confidence based on response rate and score consistency
+    response_rate = total_weight  # 1.0 if all agents responded
+    scores = [r.get("score", 0) for r in agent_results if isinstance(r.get("score"), (int, float))]
+    if len(scores) >= 2:
+        avg = sum(scores) / len(scores)
+        variance = sum((s - avg) ** 2 for s in scores) / len(scores)
+        std_dev = variance ** 0.5
+        consistency = max(0, 1 - std_dev / 50)  # Normalize: 0 if std_dev=50, 1 if std_dev=0
+    else:
+        consistency = 0.5
+
+    confidence = round(min(100, (response_rate * 60 + consistency * 40)), 1)
     return potential_score, confidence
 
 
@@ -1252,11 +1255,30 @@ async def _analyze_single_stock(stock_data: dict) -> dict | None:
             why_hidden = r.get("why_hidden", r.get("explanation", ""))
         if r.get("agent_name") == "change":
             what_changed = r.get("what_changed", r.get("explanation", ""))
+            if r.get("explanation"):
+                catalysts.append(r["explanation"])
+        if r.get("agent_name") == "growth" and r.get("explanation"):
+            growth_drivers.append(r["explanation"])
+        if r.get("agent_name") == "fundamental" and r.get("explanation"):
+            # Extract risk signals from fundamental analysis
+            explanation = r["explanation"].lower()
+            if any(word in explanation for word in ["risk", "debt", "concern", "challenge", "weakness"]):
+                risks.append(r["explanation"])
+        if r.get("agent_name") == "valuation" and r.get("explanation"):
+            # Extract risk signals from valuation analysis
+            explanation = r["explanation"].lower()
+            if any(word in explanation for word in ["overvalued", "expensive", "high", "premium", "stretched"]):
+                risks.append(r["explanation"])
 
-    # Use the highest-scoring agent's explanation as growth driver
-    sorted_agents = sorted(agent_results, key=lambda x: x.get("score", 0), reverse=True)
-    if sorted_agents:
-        growth_drivers = [sorted_agents[0].get("explanation", "")]
+    # If no growth drivers extracted, use highest-scoring agent
+    if not growth_drivers:
+        sorted_agents = sorted(agent_results, key=lambda x: x.get("score", 0), reverse=True)
+        if sorted_agents:
+            growth_drivers = [sorted_agents[0].get("explanation", "")]
+
+    # Default catalyst if none found
+    if not catalysts:
+        catalysts = [what_changed] if what_changed else ["Recent positive developments"]
 
     return {
         "ticker": stock_data.get("ticker", ""),

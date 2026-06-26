@@ -73,6 +73,11 @@ Web UI + Mobile App (shows individual + final)
 | `GET /watchlist` | Get user's watchlist (requires auth) |
 | `POST /watchlist` | Add ticker to watchlist (requires auth) |
 | `DELETE /watchlist/{ticker}` | Remove from watchlist (requires auth) |
+| `GET /watchlist/{ticker}/check` | Check if ticker is in watchlist (requires auth) |
+| `GET /potential-stocks/today` | Get latest potential stock picks |
+| `GET /potential-stocks/history` | Browse past discovery runs |
+| `GET /potential-stocks/{ticker}` | Get detailed pick with agent scores |
+| `POST /potential-stocks/run` | Trigger discovery run (`?max_stocks=30`) |
 | `GET /docs` | Swagger UI (auto-generated) |
 
 ## Frontend (Web)
@@ -83,6 +88,8 @@ Next.js app in `frontend/` with Apple-inspired Tailwind CSS design. Supports dar
 |------|------|-------------|
 | Home | `frontend/src/app/page.tsx` | Hero section, search bar, quick tickers |
 | Explore | `frontend/src/app/explore/page.tsx` | Stock Explorer — browse, search, add to watchlist |
+| Potential Stocks | `frontend/src/app/potential-stocks/page.tsx` | AI hidden gem discovery with scores |
+| Potential Detail | `frontend/src/app/potential-stocks/[ticker]/page.tsx` | Agent breakdown, why hidden, what changed |
 | Research | `frontend/src/app/research/[ticker]/page.tsx` | Price card, bull/bear, agent tabs |
 | Login | `frontend/src/app/login/page.tsx` | Username/password + OAuth |
 | Register | `frontend/src/app/register/page.tsx` | Account creation + OAuth |
@@ -130,6 +137,9 @@ Tables:
 - `final_synthesis` — Judge AI synthesis
 - `member_points` — User points balance and member level
 - `point_transactions` — Point earn/purchase history
+- `potential_stock_runs` — Discovery run tracking
+- `potential_stock_picks` — Individual stock picks with scores
+- `potential_stock_agent_scores` — Per-agent score breakdown
 
 ### Member Levels
 

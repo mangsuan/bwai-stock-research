@@ -179,7 +179,8 @@ export default function PotentialStockDetailClient() {
                 className="w-24 h-24 rounded-full flex items-center justify-center ring-4"
                 style={{
                   backgroundColor: getScoreColor(pick.potential_score) + "15",
-                  ringColor: getScoreColor(pick.potential_score) + "40",
+                  outlineColor: getScoreColor(pick.potential_score) + "40",
+                  boxShadow: `0 0 0 4px ${getScoreColor(pick.potential_score)}40`,
                 }}
               >
                 <div>
