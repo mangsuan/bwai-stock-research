@@ -590,6 +590,8 @@ class UserResponse(BaseModel):
     avatar_url: str | None = None
     member_level: str = "entry"
     total_points: int = 0
+    role: str = "user"
+    status: str = "active"
 
 
 class TokenResponse(BaseModel):
@@ -650,6 +652,8 @@ async def login(req: LoginRequest):
             avatar_url=full.get("avatar_url") if full else None,
             member_level=full.get("member_level", "entry") if full else "entry",
             total_points=full.get("total_points", 0) if full else 0,
+            role=full.get("role", "user") if full else "user",
+            status=full.get("status", "active") if full else "active",
         ),
     )
 
@@ -669,6 +673,8 @@ async def get_me(user: dict = Depends(require_user)):
         avatar_url=full.get("avatar_url"),
         member_level=full.get("member_level", "entry"),
         total_points=full.get("total_points", 0),
+        role=full.get("role", "user"),
+        status=full.get("status", "active"),
     )
 
 
