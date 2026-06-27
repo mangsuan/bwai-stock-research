@@ -368,6 +368,91 @@ SECTOR_MAP = {
     "KO": ("Consumer Defensive", "Beverages", 0.3e12),
 }
 
+# Comprehensive stock ranking database: (sector, category, country, market_cap_est)
+STOCK_RANKINGS = {
+    "AAPL":  {"name": "Apple Inc.", "sector": "Technology", "category": "Consumer Electronics", "country": "United States", "flag": "🇺🇸", "cap": 3.0e12},
+    "MSFT":  {"name": "Microsoft Corporation", "sector": "Technology", "category": "Software", "country": "United States", "flag": "🇺🇸", "cap": 2.8e12},
+    "NVDA":  {"name": "NVIDIA Corporation", "sector": "Technology", "category": "Semiconductors", "country": "United States", "flag": "🇺🇸", "cap": 2.7e12},
+    "GOOGL": {"name": "Alphabet Inc.", "sector": "Technology", "category": "Internet Services", "country": "United States", "flag": "🇺🇸", "cap": 1.9e12},
+    "AMZN":  {"name": "Amazon.com Inc.", "sector": "Consumer Cyclical", "category": "E-Commerce", "country": "United States", "flag": "🇺🇸", "cap": 1.8e12},
+    "META":  {"name": "Meta Platforms Inc.", "sector": "Technology", "category": "Social Media", "country": "United States", "flag": "🇺🇸", "cap": 1.3e12},
+    "TSLA":  {"name": "Tesla Inc.", "sector": "Consumer Cyclical", "category": "Electric Vehicles", "country": "United States", "flag": "🇺🇸", "cap": 0.8e12},
+    "BRK.B": {"name": "Berkshire Hathaway", "sector": "Financial", "category": "Conglomerate", "country": "United States", "flag": "🇺🇸", "cap": 0.9e12},
+    "TSM":   {"name": "Taiwan Semiconductor", "sector": "Technology", "category": "Semiconductors", "country": "Taiwan", "flag": "🇹🇼", "cap": 0.8e12},
+    "AVGO":  {"name": "Broadcom Inc.", "sector": "Technology", "category": "Semiconductors", "country": "United States", "flag": "🇺🇸", "cap": 0.7e12},
+    "JPM":   {"name": "JPMorgan Chase & Co.", "sector": "Financial", "category": "Banking", "country": "United States", "flag": "🇺🇸", "cap": 0.6e12},
+    "V":     {"name": "Visa Inc.", "sector": "Financial", "category": "Payment Services", "country": "United States", "flag": "🇺🇸", "cap": 0.5e12},
+    "UNH":   {"name": "UnitedHealth Group", "sector": "Healthcare", "category": "Health Insurance", "country": "United States", "flag": "🇺🇸", "cap": 0.5e12},
+    "XOM":   {"name": "Exxon Mobil Corp.", "sector": "Energy", "category": "Oil & Gas", "country": "United States", "flag": "🇺🇸", "cap": 0.5e12},
+    "WMT":   {"name": "Walmart Inc.", "sector": "Consumer Defensive", "category": "Retail", "country": "United States", "flag": "🇺🇸", "cap": 0.5e12},
+    "MA":    {"name": "Mastercard Inc.", "sector": "Financial", "category": "Payment Services", "country": "United States", "flag": "🇺🇸", "cap": 0.4e12},
+    "PG":    {"name": "Procter & Gamble", "sector": "Consumer Defensive", "category": "Household Products", "country": "United States", "flag": "🇺🇸", "cap": 0.4e12},
+    "JNJ":   {"name": "Johnson & Johnson", "sector": "Healthcare", "category": "Pharmaceuticals", "country": "United States", "flag": "🇺🇸", "cap": 0.4e12},
+    "HD":    {"name": "Home Depot Inc.", "sector": "Consumer Cyclical", "category": "Home Improvement", "country": "United States", "flag": "🇺🇸", "cap": 0.4e12},
+    "COST":  {"name": "Costco Wholesale", "sector": "Consumer Defensive", "category": "Retail", "country": "United States", "flag": "🇺🇸", "cap": 0.4e12},
+    "ABBV":  {"name": "AbbVie Inc.", "sector": "Healthcare", "category": "Pharmaceuticals", "country": "United States", "flag": "🇺🇸", "cap": 0.3e12},
+    "CRM":   {"name": "Salesforce Inc.", "sector": "Technology", "category": "Software", "country": "United States", "flag": "🇺🇸", "cap": 0.3e12},
+    "NFLX":  {"name": "Netflix Inc.", "sector": "Communication Services", "category": "Entertainment", "country": "United States", "flag": "🇺🇸", "cap": 0.3e12},
+    "BAC":   {"name": "Bank of America", "sector": "Financial", "category": "Banking", "country": "United States", "flag": "🇺🇸", "cap": 0.3e12},
+    "KO":    {"name": "Coca-Cola Co.", "sector": "Consumer Defensive", "category": "Beverages", "country": "United States", "flag": "🇺🇸", "cap": 0.3e12},
+    "AMD":   {"name": "Advanced Micro Devices", "sector": "Technology", "category": "Semiconductors", "country": "United States", "flag": "🇺🇸", "cap": 0.3e12},
+    "PEP":   {"name": "PepsiCo Inc.", "sector": "Consumer Defensive", "category": "Beverages", "country": "United States", "flag": "🇺🇸", "cap": 0.2e12},
+    "TMO":   {"name": "Thermo Fisher Scientific", "sector": "Healthcare", "category": "Diagnostics", "country": "United States", "flag": "🇺🇸", "cap": 0.2e12},
+    "LIN":   {"name": "Linde plc", "sector": "Basic Materials", "category": "Chemicals", "country": "Ireland", "flag": "🇮🇪", "cap": 0.2e12},
+    "DIS":   {"name": "Walt Disney Co.", "sector": "Communication Services", "category": "Entertainment", "country": "United States", "flag": "🇺🇸", "cap": 0.2e12},
+    "SAP":   {"name": "SAP SE", "sector": "Technology", "category": "Software", "country": "Germany", "flag": "🇩🇪", "cap": 0.2e12},
+    "NVO":   {"name": "Novo Nordisk A/S", "sector": "Healthcare", "category": "Pharmaceuticals", "country": "Denmark", "flag": "🇩🇰", "cap": 0.4e12},
+    "ASML":  {"name": "ASML Holding NV", "sector": "Technology", "category": "Semiconductors", "country": "Netherlands", "flag": "🇳🇱", "cap": 0.3e12},
+    "SHEL":  {"name": "Shell plc", "sector": "Energy", "category": "Oil & Gas", "country": "United Kingdom", "flag": "🇬🇧", "cap": 0.2e12},
+    "AZN":   {"name": "AstraZeneca PLC", "sector": "Healthcare", "category": "Pharmaceuticals", "country": "United Kingdom", "flag": "🇬🇧", "cap": 0.2e12},
+    "NVS":   {"name": "Novartis AG", "sector": "Healthcare", "category": "Pharmaceuticals", "country": "Switzerland", "flag": "🇨🇭", "cap": 0.2e12},
+    "TM":    {"name": "Toyota Motor Corp.", "sector": "Consumer Cyclical", "category": "Automakers", "country": "Japan", "flag": "🇯🇵", "cap": 0.2e12},
+    "Samsung": {"name": "Samsung Electronics", "sector": "Technology", "category": "Consumer Electronics", "country": "South Korea", "flag": "🇰🇷", "cap": 0.3e12},
+    "SONY":  {"name": "Sony Group Corp.", "sector": "Technology", "category": "Consumer Electronics", "country": "Japan", "flag": "🇯🇵", "cap": 0.1e12},
+    "HSBC":  {"name": "HSBC Holdings plc", "sector": "Financial", "category": "Banking", "country": "United Kingdom", "flag": "🇬🇧", "cap": 0.15e12},
+    "RY":    {"name": "Royal Bank of Canada", "sector": "Financial", "category": "Banking", "country": "Canada", "flag": "🇨🇦", "cap": 0.15e12},
+    "BHP":   {"name": "BHP Group Ltd.", "sector": "Basic Materials", "category": "Mining", "country": "Australia", "flag": "🇦🇺", "cap": 0.15e12},
+    "UL":    {"name": "Unilever PLC", "sector": "Consumer Defensive", "category": "Household Products", "country": "United Kingdom", "flag": "🇬🇧", "cap": 0.13e12},
+    "DEO":   {"name": "Diageo plc", "sector": "Consumer Defensive", "category": "Beverages", "country": "United Kingdom", "flag": "🇬🇧", "cap": 0.08e12},
+    "GS":    {"name": "Goldman Sachs Group", "sector": "Financial", "category": "Investment Banking", "country": "United States", "flag": "🇺🇸", "cap": 0.15e12},
+    "BLK":   {"name": "BlackRock Inc.", "sector": "Financial", "category": "Asset Management", "country": "United States", "flag": "🇺🇸", "cap": 0.13e12},
+    "PYPL":  {"name": "PayPal Holdings", "sector": "Financial", "category": "Payment Services", "country": "United States", "flag": "🇺🇸", "cap": 0.07e12},
+    "INTC":  {"name": "Intel Corporation", "sector": "Technology", "category": "Semiconductors", "country": "United States", "flag": "🇺🇸", "cap": 0.1e12},
+    "IBM":   {"name": "IBM", "sector": "Technology", "category": "Software", "country": "United States", "flag": "🇺🇸", "cap": 0.15e12},
+    "GE":    {"name": "General Electric", "sector": "Industrials", "category": "Conglomerate", "country": "United States", "flag": "🇺🇸", "cap": 0.15e12},
+    "CAT":   {"name": "Caterpillar Inc.", "sector": "Industrials", "category": "Heavy Machinery", "country": "United States", "flag": "🇺🇸", "cap": 0.15e12},
+    "BA":    {"name": "Boeing Co.", "sector": "Industrials", "category": "Aerospace", "country": "United States", "flag": "🇺🇸", "cap": 0.1e12},
+    "NKE":   {"name": "Nike Inc.", "sector": "Consumer Cyclical", "category": "Apparel", "country": "United States", "flag": "🇺🇸", "cap": 0.1e12},
+    "MCD":   {"name": "McDonald's Corp.", "sector": "Consumer Cyclical", "category": "Restaurants", "country": "United States", "flag": "🇺🇸", "cap": 0.2e12},
+    "SBUX":  {"name": "Starbucks Corp.", "sector": "Consumer Cyclical", "category": "Restaurants", "country": "United States", "flag": "🇺🇸", "cap": 0.1e12},
+    "LVMH":  {"name": "LVMH Moët Hennessy", "sector": "Consumer Cyclical", "category": "Luxury Goods", "country": "France", "flag": "🇫🇷", "cap": 0.35e12},
+    "TTE":   {"name": "TotalEnergies SE", "sector": "Energy", "category": "Oil & Gas", "country": "France", "flag": "🇫🇷", "cap": 0.15e12},
+    "BABA":  {"name": "Alibaba Group", "sector": "Technology", "category": "E-Commerce", "country": "China", "flag": "🇨🇳", "cap": 0.2e12},
+    "TCEHY": {"name": "Tencent Holdings", "sector": "Technology", "category": "Internet Services", "country": "China", "flag": "🇨🇳", "cap": 0.4e12},
+    "JD":    {"name": "JD.com Inc.", "sector": "Consumer Cyclical", "category": "E-Commerce", "country": "China", "flag": "🇨🇳", "cap": 0.05e12},
+    "PDD":   {"name": "PDD Holdings", "sector": "Consumer Cyclical", "category": "E-Commerce", "country": "China", "flag": "🇨🇳", "cap": 0.1e12},
+    "BIDU":  {"name": "Baidu Inc.", "sector": "Technology", "category": "Internet Services", "country": "China", "flag": "🇨🇳", "cap": 0.04e12},
+    "NIO":   {"name": "NIO Inc.", "sector": "Consumer Cyclical", "category": "Electric Vehicles", "country": "China", "flag": "🇨🇳", "cap": 0.01e12},
+    "INFY":  {"name": "Infosys Ltd.", "sector": "Technology", "category": "IT Services", "country": "India", "flag": "🇮🇳", "cap": 0.08e12},
+    "TCS":   {"name": "Tata Consultancy", "sector": "Technology", "category": "IT Services", "country": "India", "flag": "🇮🇳", "cap": 0.15e12},
+    "RELIANCE": {"name": "Reliance Industries", "sector": "Energy", "category": "Conglomerate", "country": "India", "flag": "🇮🇳", "cap": 0.2e12},
+    "VALE":  {"name": "Vale S.A.", "sector": "Basic Materials", "category": "Mining", "country": "Brazil", "flag": "🇧🇷", "cap": 0.06e12},
+    "PBR":   {"name": "Petrobras", "sector": "Energy", "category": "Oil & Gas", "country": "Brazil", "flag": "🇧🇷", "cap": 0.08e12},
+    "SIEGY": {"name": "Siemens AG", "sector": "Industrials", "category": "Conglomerate", "country": "Germany", "flag": "🇩🇪", "cap": 0.15e12},
+    "BAYRY": {"name": "Bayer AG", "sector": "Healthcare", "category": "Pharmaceuticals", "country": "Germany", "flag": "🇩🇪", "cap": 0.03e12},
+    "DB":    {"name": "Deutsche Bank AG", "sector": "Financial", "category": "Banking", "country": "Germany", "flag": "🇩🇪", "cap": 0.03e12},
+    "EADSY": {"name": "Airbus SE", "sector": "Industrials", "category": "Aerospace", "country": "France", "flag": "🇫🇷", "cap": 0.1e12},
+    "SNY":   {"name": "Sanofi S.A.", "sector": "Healthcare", "category": "Pharmaceuticals", "country": "France", "flag": "🇫🇷", "cap": 0.13e12},
+}
+
+# Country flag mapping
+COUNTRY_FLAGS = {
+    "United States": "🇺🇸", "United Kingdom": "🇬🇧", "Japan": "🇯🇵", "Germany": "🇩🇪",
+    "France": "🇫🇷", "China": "🇨🇳", "India": "🇮🇳", "Canada": "🇨🇦", "Australia": "🇦🇺",
+    "South Korea": "🇰🇷", "Taiwan": "🇹🇼", "Netherlands": "🇳🇱", "Switzerland": "🇨🇭",
+    "Ireland": "🇮🇪", "Denmark": "🇩🇰", "Brazil": "🇧🇷",
+}
+
 
 @app.get("/stocks/sectors")
 async def get_stocks_by_sector():
@@ -465,6 +550,105 @@ async def list_stocks(q: str = "", page: int = 1, per_page: int = 50):
         "total": total,
         "total_pages": total_pages,
     }
+
+
+# ---------- Stock Rankings ----------
+
+
+async def _get_ranked_stocks(limit: int = 100) -> list[dict]:
+    """Get stocks ranked by market cap with live prices."""
+    import asyncio
+
+    stocks = []
+    tickers = sorted(STOCK_RANKINGS.keys(), key=lambda t: STOCK_RANKINGS[t]["cap"], reverse=True)[:limit]
+
+    async def _fetch_one(ticker: str) -> dict | None:
+        info = STOCK_RANKINGS[ticker]
+        try:
+            chart_meta = await _yahoo_chart(ticker)
+            price = chart_meta.get("regularMarketPrice")
+            prev_close = chart_meta.get("chartPreviousClose")
+            change_pct = round((price - prev_close) / prev_close * 100, 2) if price and prev_close else None
+        except Exception:
+            price = None
+            change_pct = None
+        return {
+            "ticker": ticker,
+            "name": info["name"],
+            "sector": info["sector"],
+            "category": info["category"],
+            "country": info["country"],
+            "flag": info["flag"],
+            "price": round(price, 2) if price else None,
+            "change_pct": change_pct,
+            "market_cap": _format_market_cap(info["cap"]),
+            "market_cap_raw": info["cap"],
+        }
+
+    # Fetch in batches of 10 to avoid rate limits
+    for i in range(0, len(tickers), 10):
+        batch = tickers[i:i+10]
+        results = await asyncio.gather(*[_fetch_one(t) for t in batch])
+        stocks.extend([r for r in results if r])
+
+    # Sort by market cap
+    stocks.sort(key=lambda s: s["market_cap_raw"], reverse=True)
+    for i, s in enumerate(stocks):
+        s["rank"] = i + 1
+
+    return stocks
+
+
+@app.get("/rankings/global")
+async def global_ranking(limit: int = 50):
+    """Get global stock ranking by market cap."""
+    stocks = await _get_ranked_stocks(limit)
+    return {"stocks": stocks, "total": len(stocks)}
+
+
+@app.get("/rankings/countries")
+async def ranking_by_country():
+    """Get stocks grouped by country."""
+    stocks = await _get_ranked_stocks(100)
+
+    countries: dict[str, list] = {}
+    for s in stocks:
+        country = s["country"]
+        if country not in countries:
+            countries[country] = {"name": country, "flag": s["flag"], "stocks": [], "total_cap": 0}
+        countries[country]["stocks"].append(s)
+        countries[country]["total_cap"] += s["market_cap_raw"]
+
+    # Sort countries by total market cap
+    sorted_countries = sorted(countries.values(), key=lambda c: c["total_cap"], reverse=True)
+    for c in sorted_countries:
+        c["total_market_cap"] = _format_market_cap(c["total_cap"])
+        c["count"] = len(c["stocks"])
+        del c["total_cap"]
+
+    return {"countries": sorted_countries}
+
+
+@app.get("/rankings/categories")
+async def ranking_by_category():
+    """Get stocks grouped by sector/category."""
+    stocks = await _get_ranked_stocks(100)
+
+    categories: dict[str, list] = {}
+    for s in stocks:
+        cat = s["sector"]
+        if cat not in categories:
+            categories[cat] = {"name": cat, "stocks": [], "total_cap": 0}
+        categories[cat]["stocks"].append(s)
+        categories[cat]["total_cap"] += s["market_cap_raw"]
+
+    sorted_categories = sorted(categories.values(), key=lambda c: c["total_cap"], reverse=True)
+    for c in sorted_categories:
+        c["total_market_cap"] = _format_market_cap(c["total_cap"])
+        c["count"] = len(c["stocks"])
+        del c["total_cap"]
+
+    return {"categories": sorted_categories}
 
 
 # ---------- Routes ----------

@@ -93,6 +93,7 @@ export default function Navbar() {
             ) : user ? (
               <>
                 <Link href="/explore" className={navBtn}>Explore</Link>
+                <Link href="/rankings" className={navBtn}>Rankings</Link>
                 <button onClick={handlePotentialClick} className={navBtn}>
                   <SparklesIcon /> Potential
                 </button>
