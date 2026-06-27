@@ -23,46 +23,26 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [providers, setProviders] = useState<{ name: string; label: string }[]>([]);
-  const { login } = useAuth();
+  const { login, loginWithToken } = useAuth();
   const { colors } = useTheme();
   const router = useRouter();
 
-  // OAuth discovery
-  const discovery = {
-    authorizationEndpoint: `${API_BASE}/auth/google`,
-  };
-
-  const [request, response, promptAsync] = AuthSession.useAuthRequest(
-    {
-      clientId: "dummy", // Handled by backend
-      redirectUri: AuthSession.makeRedirectUri({ scheme: "bwai" }),
-      responseType: AuthSession.ResponseType.Code,
-    },
-    discovery
-  );
-
   useEffect(() => {
-    // Fetch available OAuth providers
     fetch(`${API_BASE}/auth/providers`)
       .then((res) => res.json())
       .then((data) => setProviders(data.providers || []))
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    if (response?.type === "success") {
-      const { code } = response.params;
-      handleOAuthCallback(code);
-    }
-  }, [response]);
-
   async function handleOAuthCallback(code: string) {
     try {
       const res = await apiFetch(`/auth/google/callback?code=${code}`);
       if (res.ok) {
         const data = await res.json();
-        // Store token and navigate
-        router.back();
+        if (data.access_token) {
+          await loginWithToken(data.access_token);
+          router.back();
+        }
       }
     } catch {
       Alert.alert("OAuth Error", "Failed to complete authentication");
@@ -83,18 +63,16 @@ export default function LoginScreen() {
 
   async function handleOAuth(provider: string) {
     try {
-      // Open OAuth in browser
       const result = await WebBrowser.openAuthSessionAsync(
         `${API_BASE}/auth/${provider}`,
         AuthSession.makeRedirectUri({ scheme: "bwai" })
       );
 
       if (result.type === "success" && result.url) {
-        // Extract token from URL
         const url = new URL(result.url);
-        const token = url.searchParams.get("token");
-        if (token) {
-          // Store token and navigate
+        const t = url.searchParams.get("token");
+        if (t) {
+          await loginWithToken(t);
           router.back();
         }
       }

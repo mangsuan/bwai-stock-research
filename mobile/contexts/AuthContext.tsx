@@ -18,6 +18,7 @@ interface AuthContextType {
   token: string | null;
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string) => Promise<void>;
+  loginWithToken: (token: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   updateProfile: (data: { display_name?: string; theme?: string }) => Promise<void>;
@@ -119,6 +120,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(data.user);
   }
 
+  async function loginWithToken(t: string) {
+    await AsyncStorage.setItem("bwai_token", t);
+    setToken(t);
+    await fetchUser(t);
+  }
+
   async function logout() {
     await AsyncStorage.removeItem("bwai_token");
     setToken(null);
@@ -126,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, logout, refreshUser, updateProfile, isLoading }}>
+    <AuthContext.Provider value={{ user, token, login, register, loginWithToken, logout, refreshUser, updateProfile, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

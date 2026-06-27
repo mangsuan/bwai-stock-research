@@ -71,10 +71,10 @@ export default function AdminUsersPage() {
     e.preventDefault();
     if (!token) return;
     setSaving(true);
-    const params = new URLSearchParams(createForm);
-    const res = await fetch(`${API_BASE}/admin/users?${params}`, {
+    const res = await fetch(`${API_BASE}/admin/users`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(createForm),
     });
     if (res.ok) {
       showMessage("success", "User created");

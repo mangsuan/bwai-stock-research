@@ -10,6 +10,7 @@ import {
   Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
+import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -21,7 +22,7 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [providers, setProviders] = useState<{ name: string; label: string }[]>([]);
-  const { register } = useAuth();
+  const { register, loginWithToken } = useAuth();
   const { colors } = useTheme();
   const router = useRouter();
 
@@ -48,10 +49,15 @@ export default function RegisterScreen() {
     try {
       const result = await WebBrowser.openAuthSessionAsync(
         `${API_BASE}/auth/${provider}`,
-        null
+        AuthSession.makeRedirectUri({ scheme: "bwai" })
       );
       if (result.type === "success" && result.url) {
-        router.back();
+        const url = new URL(result.url);
+        const t = url.searchParams.get("token");
+        if (t) {
+          await loginWithToken(t);
+          router.back();
+        }
       }
     } catch {
       Alert.alert("OAuth Error", "Failed to open authentication");

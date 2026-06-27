@@ -1,9 +1,9 @@
 // API Configuration
-// Change this to your backend URL
-// For local dev: http://localhost:8000
-// For Android emulator: http://10.0.2.2:8000
-// For physical device: http://YOUR_IP:8000
-export const API_BASE = "http://192.168.0.26:8000";
+// Set EXPO_PUBLIC_API_BASE in .env or app config
+// Default: http://localhost:8000 (works for iOS simulator)
+// Android emulator: http://10.0.2.2:8000
+// Physical device: http://YOUR_LAN_IP:8000
+export const API_BASE = process.env.EXPO_PUBLIC_API_BASE || "http://localhost:8000";
 
 export async function apiFetch(
   path: string,

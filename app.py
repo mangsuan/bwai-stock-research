@@ -967,8 +967,6 @@ async def get_my_point_history(user: dict = Depends(require_user)):
 @app.get("/admin/stats")
 async def admin_stats(admin: dict = Depends(require_admin)):
     """Get admin dashboard stats."""
-    from sqlalchemy import select, func as sql_func
-
     users = await get_all_users()
     pending = await get_pending_purchases()
     transactions = await get_all_transactions(limit=1000)
@@ -990,20 +988,22 @@ async def admin_list_users(admin: dict = Depends(require_admin)):
     return await get_all_users()
 
 
+class AdminCreateUser(BaseModel):
+    username: str
+    email: str
+    password: str
+    role: str = "user"
+
 @app.post("/admin/users")
-async def admin_create_user_endpoint(
-    username: str = "",
-    email: str = "",
-    password: str = "",
-    role: str = "user",
-    admin: dict = Depends(require_admin),
-):
+async def admin_create_user_endpoint(req: AdminCreateUser, admin: dict = Depends(require_admin)):
     """Create a new user."""
-    if not username or not email or not password:
-        raise HTTPException(status_code=400, detail="username, email, and password required")
+    if len(req.username) < 3:
+        raise HTTPException(status_code=400, detail="Username must be at least 3 characters")
+    if len(req.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
     try:
-        hashed = pwd_context.hash(password)
-        return await admin_create_user(username, email, hashed, role)
+        hashed = pwd_context.hash(req.password)
+        return await admin_create_user(req.username, req.email, hashed, req.role)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

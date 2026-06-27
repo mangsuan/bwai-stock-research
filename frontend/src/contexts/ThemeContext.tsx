@@ -16,8 +16,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // Sync theme from user profile or localStorage
   useEffect(() => {
-    if (user?.theme) {
-      setTheme(user.theme as "light" | "dark");
+    if (user?.theme && (user.theme === "light" || user.theme === "dark")) {
+      setTheme(user.theme);
       document.documentElement.classList.toggle("dark", user.theme === "dark");
     } else {
       const saved = localStorage.getItem("bwai_theme");
