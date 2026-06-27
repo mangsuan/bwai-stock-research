@@ -1189,19 +1189,42 @@ async def admin_create_user(username: str, email: str, password_hash: str, role:
 
 
 async def admin_update_user(user_id: int, **kwargs) -> dict:
-    """Update user fields (admin)."""
+    """Update user fields (admin). Supports updating user info and member points."""
     async with async_session() as session:
         user = await session.get(User, user_id)
         if not user:
             raise ValueError("User not found")
 
-        allowed = {"username", "email", "display_name", "role", "status", "theme"}
+        # User table fields
+        user_fields = {"username", "email", "display_name", "role", "status", "theme", "avatar_url"}
         for key, val in kwargs.items():
-            if key in allowed and val is not None:
+            if key in user_fields and val is not None:
                 setattr(user, key, val)
+
+        # Update member points if provided
+        total_points = kwargs.get("total_points")
+        if total_points is not None:
+            from sqlalchemy import select
+            stmt = select(MemberPoints).where(MemberPoints.user_id == user_id)
+            result = await session.execute(stmt)
+            mp = result.scalar_one_or_none()
+
+            if mp is None:
+                mp = MemberPoints(user_id=user_id, total_points=0, member_level="entry")
+                session.add(mp)
+
+            mp.total_points = int(total_points)
+            mp.member_level = calculate_member_level(mp.total_points)
+            mp.updated_at = datetime.now(timezone.utc)
 
         await session.commit()
         await session.refresh(user)
+
+        # Get updated points
+        from sqlalchemy import select as sel
+        stmt = sel(MemberPoints).where(MemberPoints.user_id == user_id)
+        result = await session.execute(stmt)
+        mp = result.scalar_one_or_none()
 
         return {
             "id": user.id,
@@ -1210,6 +1233,10 @@ async def admin_update_user(user_id: int, **kwargs) -> dict:
             "display_name": user.display_name,
             "role": user.role,
             "status": user.status,
+            "theme": user.theme,
+            "avatar_url": user.avatar_url,
+            "total_points": mp.total_points if mp else 0,
+            "member_level": mp.member_level if mp else "entry",
         }
 
 

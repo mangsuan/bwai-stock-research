@@ -831,6 +831,8 @@ class AdminUserUpdate(BaseModel):
     role: str | None = None
     status: str | None = None
     theme: str | None = None
+    avatar_url: str | None = None
+    total_points: int | None = None
 
 class AdminVisibilityUpdate(BaseModel):
     visibility: dict | None = None
