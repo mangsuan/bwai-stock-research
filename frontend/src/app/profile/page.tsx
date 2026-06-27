@@ -19,10 +19,26 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [pointsInfo, setPointsInfo] = useState<Record<string, unknown> | null>(null);
-  const [pointsHistory, setPointsHistory] = useState<Record<string, unknown>[]>([]);
+  interface PointsInfo {
+    progress_pct: number;
+    points_to_next: number;
+    next_threshold: number;
+    level: string;
+    total_points: number;
+  }
+
+  interface PointsTransaction {
+    id: number;
+    source: string;
+    amount: number;
+    created_at: string;
+  }
+
+  const [pointsInfo, setPointsInfo] = useState<PointsInfo | null>(null);
+  const [pointsHistory, setPointsHistory] = useState<PointsTransaction[]>([]);
   const [buyAmount, setBuyAmount] = useState(50);
   const [earnAmount, setEarnAmount] = useState(10);
+  const [historyExpanded, setHistoryExpanded] = useState(false);
 
   // Initialize form when user loads
   useEffect(() => {
@@ -315,27 +331,45 @@ export default function ProfilePage() {
 
         {/* Points History */}
         {pointsHistory.length > 0 && (
-          <div className="bg-white dark:bg-[#2d2d2f] rounded-3xl border border-[#d2d2d7] dark:border-[#38383a] p-8">
-            <h2 className="text-lg font-semibold mb-6">Points History</h2>
-            <div className="space-y-3">
-              {pointsHistory.map((txn: any) => (
-                <div
-                  key={txn.id}
-                  className="flex items-center justify-between py-2 border-b border-[#f5f5f7] dark:border-[#38383a] last:border-0"
+          <div className="bg-white dark:bg-[#2d2d2f] rounded-3xl border border-[#d2d2d7] dark:border-[#38383a] overflow-hidden">
+            <button
+              onClick={() => setHistoryExpanded(!historyExpanded)}
+              className="w-full flex items-center justify-between p-8 hover:bg-[#f5f5f7] dark:hover:bg-[#38383a]/50 transition-colors"
+            >
+              <h2 className="text-lg font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Points History</h2>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-[#86868b]">{pointsHistory.length} transaction{pointsHistory.length !== 1 && "s"}</span>
+                <svg
+                  className={`w-5 h-5 text-[#86868b] transition-transform duration-300 ${historyExpanded ? "rotate-180" : ""}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
                 >
-                  <div>
-                    <p className="text-sm font-medium">
-                      {txn.source === "ad_reward" ? "🎬 Ad Reward" : "💰 Purchase"}
-                    </p>
-                    {txn.description && (
-                      <p className="text-xs text-[#86868b]">{txn.description}</p>
-                    )}
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </button>
+            <div className={`transition-all duration-300 ease-in-out ${historyExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"} overflow-hidden`}>
+              <div className="px-8 pb-8 space-y-3">
+                {pointsHistory.map((txn: PointsTransaction & { description?: string }) => (
+                  <div
+                    key={txn.id}
+                    className="flex items-center justify-between py-2 border-b border-[#f5f5f7] dark:border-[#38383a] last:border-0"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-[#1d1d1f] dark:text-[#f5f5f7]">
+                        {txn.source === "ad_reward" ? "🎬 Ad Reward" : "💰 Purchase"}
+                      </p>
+                      {txn.description && (
+                        <p className="text-xs text-[#86868b]">{txn.description}</p>
+                      )}
+                    </div>
+                    <span className={`font-medium ${txn.amount > 0 ? "text-[#34c759]" : "text-[#ff3b30]"}`}>
+                      +{txn.amount}
+                    </span>
                   </div>
-                  <span className={`font-medium ${txn.amount > 0 ? "text-[#34c759]" : "text-[#ff3b30]"}`}>
-                    +{txn.amount}
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         )}

@@ -45,6 +45,8 @@ function getScoreRing(score: number): string {
   return "ring-[#86868b]/30";
 }
 
+const POINTS_REQUIRED = 500;
+
 export default function PotentialStocksPage() {
   const { user, token } = useAuth();
   const [picks, setPicks] = useState<PotentialPick[]>([]);
@@ -85,6 +87,34 @@ export default function PotentialStocksPage() {
     } finally {
       setRunning(false);
     }
+  }
+
+  // Access guard: require 500+ points
+  if (user && (user.total_points ?? 0) < POINTS_REQUIRED) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center min-h-[70vh] px-6 animate-fade-in">
+        <div className="w-20 h-20 rounded-full bg-[#ff9500]/10 flex items-center justify-center mx-auto mb-6">
+          <span className="text-4xl">🔒</span>
+        </div>
+        <h1 className="text-3xl font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] mb-3">
+          Premium Feature
+        </h1>
+        <p className="text-[#6e6e73] dark:text-[#a1a1a6] mb-2 text-center max-w-md">
+          Only users with <span className="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">500 points</span> or more can access AI Potential Stocks discovery.
+        </p>
+        <p className="text-sm text-[#86868b] mb-8 text-center">
+          You currently have <span className="font-semibold">{user.total_points ?? 0}</span> points. You need <span className="font-semibold text-[#0071e3]">{POINTS_REQUIRED - (user.total_points ?? 0)}</span> more.
+        </p>
+        <div className="flex gap-4">
+          <Link href="/profile" className="btn-apple text-sm !py-2.5 !px-6">
+            Earn or Buy Points
+          </Link>
+          <Link href="/" className="btn-apple-secondary text-sm !py-2.5 !px-6">
+            Go Home
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (

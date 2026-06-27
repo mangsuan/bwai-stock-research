@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -40,7 +41,17 @@ export default function RootLayout({
                 <div className="flex flex-col items-center gap-4 text-sm text-[#6e6e73] dark:text-[#a1a1a6]">
                   <p className="font-medium">BWAI — Buy With AI</p>
                   <p>Not financial advice. Always do your own research.</p>
-                  <p className="text-xs text-[#86868b]">© 2026 BWAI. All rights reserved.</p>
+                  <div className="flex items-center gap-4 text-xs">
+                    <Link href="/contact" className="hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-colors">
+                      Contact
+                    </Link>
+                    <span className="text-[#d2d2d7] dark:text-[#48484a]">|</span>
+                    <Link href="/terms" className="hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-colors">
+                      Terms &amp; Conditions
+                    </Link>
+                    <span className="text-[#d2d2d7] dark:text-[#48484a]">|</span>
+                    <span className="text-[#86868b]">© 2026 BWAI. All rights reserved.</span>
+                  </div>
                 </div>
               </div>
             </footer>

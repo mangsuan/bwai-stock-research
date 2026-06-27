@@ -229,6 +229,24 @@ class PotentialStockAgentScore(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
+class PotentialStockTimelineSnapshot(Base):
+    """Timeline snapshot for tracking a hidden gem's journey over time."""
+    __tablename__ = "potential_stock_timeline_snapshots"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    pick_id = Column(Integer, ForeignKey("potential_stock_picks.id"), nullable=False, index=True)
+    ticker = Column(String(10), nullable=False, index=True)
+    day_label = Column(String(10), nullable=False)  # "0", "7", "30", "90", "180", "365"
+    snapshot_date = Column(DateTime(timezone=True), nullable=False)
+    price = Column(Float, nullable=True)
+    potential_score = Column(Float, nullable=True)
+    ai_summary = Column(Text, nullable=True)
+    market_cap = Column(Text, nullable=True)  # Formatted string like "$1.2B"
+    performance_pct = Column(Float, nullable=True)  # % change from price_at_pick
+    events = Column(Text, nullable=True)  # JSON array of notable events
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
 # Cache TTL in hours
 CACHE_TTL_HOURS = int(os.getenv("CACHE_TTL_HOURS", "4"))
 
@@ -980,3 +998,120 @@ def _pick_to_dict(p, json_module) -> dict:
         "risks": json_module.loads(p.risks) if p.risks else [],
         "created_at": p.created_at.isoformat() if p.created_at else None,
     }
+
+
+# ---------- Timeline Snapshots ----------
+
+
+async def create_timeline_snapshot(
+    pick_id: int,
+    ticker: str,
+    day_label: str,
+    snapshot_date: datetime,
+    price: float | None = None,
+    potential_score: float | None = None,
+    ai_summary: str | None = None,
+    market_cap: float | None = None,
+    performance_pct: float | None = None,
+    events: list[str] | None = None,
+) -> int:
+    """Create a timeline snapshot. Returns snapshot id."""
+    import json
+
+    async with async_session() as session:
+        snap = PotentialStockTimelineSnapshot(
+            pick_id=pick_id,
+            ticker=ticker.upper(),
+            day_label=day_label,
+            snapshot_date=snapshot_date,
+            price=price,
+            potential_score=potential_score,
+            ai_summary=ai_summary,
+            market_cap=market_cap,
+            performance_pct=performance_pct,
+            events=json.dumps(events) if events else None,
+        )
+        session.add(snap)
+        await session.commit()
+        await session.refresh(snap)
+        return snap.id
+
+
+async def get_timeline_snapshots(ticker: str) -> list[dict]:
+    """Get all timeline snapshots for a ticker, ordered by day label."""
+    from sqlalchemy import select, cast, Integer
+    import json
+
+    async with async_session() as session:
+        stmt = (
+            select(PotentialStockTimelineSnapshot)
+            .where(PotentialStockTimelineSnapshot.ticker == ticker.upper())
+            .order_by(cast(PotentialStockTimelineSnapshot.day_label, Integer))
+        )
+        result = await session.execute(stmt)
+        snapshots = result.scalars().all()
+
+        return [
+            {
+                "id": s.id,
+                "pick_id": s.pick_id,
+                "ticker": s.ticker,
+                "day_label": s.day_label,
+                "snapshot_date": s.snapshot_date.isoformat() if s.snapshot_date else None,
+                "price": s.price,
+                "potential_score": s.potential_score,
+                "ai_summary": s.ai_summary,
+                "market_cap": s.market_cap,
+                "performance_pct": s.performance_pct,
+                "events": json.loads(s.events) if s.events else [],
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+            }
+            for s in snapshots
+        ]
+
+
+MILESTONE_DAYS = [0, 7, 30, 90, 180, 365]
+
+
+async def get_pending_snapshot_tickers() -> list[dict]:
+    """Find picks that need new timeline snapshots based on elapsed days."""
+    from sqlalchemy import select, func as sql_func
+
+    async with async_session() as session:
+        # Get all picks with their existing snapshot day_labels
+        stmt = select(PotentialStockPick).order_by(PotentialStockPick.created_at.desc())
+        result = await session.execute(stmt)
+        picks = result.scalars().all()
+
+        now = datetime.now(timezone.utc)
+        pending = []
+
+        for pick in picks:
+            created = pick.created_at
+            if created and created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+            if not created:
+                continue
+
+            days_elapsed = (now - created).days
+
+            # Get existing snapshots for this pick
+            snap_stmt = select(PotentialStockTimelineSnapshot.day_label).where(
+                PotentialStockTimelineSnapshot.pick_id == pick.id
+            )
+            snap_result = await session.execute(snap_stmt)
+            existing_labels = {row[0] for row in snap_result.all()}
+
+            for milestone in MILESTONE_DAYS:
+                if milestone == 0:
+                    continue  # Day 0 is created on discovery
+                if days_elapsed >= milestone and str(milestone) not in existing_labels:
+                    pending.append({
+                        "pick_id": pick.id,
+                        "ticker": pick.ticker,
+                        "day_label": str(milestone),
+                        "price_at_pick": pick.price_at_pick,
+                        "snapshot_date": created + timedelta(days=milestone),
+                    })
+
+        return pending

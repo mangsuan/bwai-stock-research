@@ -8,6 +8,19 @@ interface Stock {
   symbol: string;
   name: string;
   exchange: string;
+  sector?: string;
+  industry?: string;
+  price?: number | null;
+  change_pct?: number | null;
+  market_cap?: string | null;
+  market_cap_raw?: number;
+}
+
+interface SectorGroup {
+  name: string;
+  stocks: Stock[];
+  total_market_cap: string;
+  count: number;
 }
 
 interface StocksResponse {
@@ -20,51 +33,72 @@ interface StocksResponse {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+const SECTOR_COLORS: Record<string, { bg: string; text: string; icon: string }> = {
+  Technology:               { bg: "bg-[#0071e3]/10", text: "text-[#0071e3]", icon: "💻" },
+  Financial:                { bg: "bg-[#34c759]/10", text: "text-[#34c759]", icon: "🏦" },
+  Healthcare:               { bg: "bg-[#ff3b30]/10", text: "text-[#ff3b30]", icon: "🏥" },
+  "Consumer Cyclical":      { bg: "bg-[#ff9500]/10", text: "text-[#ff9500]", icon: "🛍️" },
+  "Consumer Defensive":     { bg: "bg-[#af52de]/10", text: "text-[#af52de]", icon: "🛒" },
+  Energy:                   { bg: "bg-[#ff2d55]/10", text: "text-[#ff2d55]", icon: "⚡" },
+  "Communication Services": { bg: "bg-[#5856d6]/10", text: "text-[#5856d6]", icon: "📡" },
+};
+
+const DEFAULT_SECTOR_COLOR = { bg: "bg-[#86868b]/10", text: "text-[#86868b]", icon: "📊" };
+
+function getSectorColor(name: string) {
+  return SECTOR_COLORS[name] || DEFAULT_SECTOR_COLOR;
+}
+
 export default function ExplorePage() {
   const { user, token } = useAuth();
 
-  const [stocks, setStocks] = useState<Stock[]>([]);
+  const [sectors, setSectors] = useState<SectorGroup[]>([]);
+  const [searchResults, setSearchResults] = useState<Stock[]>([]);
   const [query, setQuery] = useState("");
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [watchlist, setWatchlist] = useState<Set<string>>(new Set());
+  const [expandedSector, setExpandedSector] = useState<string | null>(null);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  // Fetch stocks
-  const fetchStocks = useCallback(async (q: string, p: number, append: boolean) => {
-    if (append) setLoadingMore(true);
-    else setLoading(true);
+  // Fetch sectors (default view)
+  const fetchSectors = useCallback(async () => {
+    setLoading(true);
     setError(null);
-
     try {
-      const params = new URLSearchParams({ page: String(p), per_page: "50" });
-      if (q) params.set("q", q);
-
-      const res = await fetch(`${API_BASE}/stocks?${params}`);
-      if (!res.ok) throw new Error("Failed to load stocks");
-
-      const data: StocksResponse = await res.json();
-      setStocks((prev) => (append ? [...prev, ...data.stocks] : data.stocks));
-      setPage(data.page);
-      setTotalPages(data.total_pages);
-      setTotal(data.total);
+      const res = await fetch(`${API_BASE}/stocks/sectors`);
+      if (!res.ok) throw new Error("Failed to load sectors");
+      const data = await res.json();
+      setSectors(data.sectors);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
-      setLoadingMore(false);
+    }
+  }, []);
+
+  // Fetch search results
+  const fetchSearch = useCallback(async (q: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({ q, page: "1", per_page: "100" });
+      const res = await fetch(`${API_BASE}/stocks?${params}`);
+      if (!res.ok) throw new Error("Failed to search stocks");
+      const data: StocksResponse = await res.json();
+      setSearchResults(data.stocks);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
   // Initial load
   useEffect(() => {
-    fetchStocks("", 1, false);
-  }, [fetchStocks]);
+    fetchSectors();
+  }, [fetchSectors]);
 
   // Load watchlist
   useEffect(() => {
@@ -83,15 +117,13 @@ export default function ExplorePage() {
   function handleSearch(value: string) {
     setQuery(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      fetchStocks(value, 1, false);
-    }, 300);
-  }
-
-  // Load more
-  function handleLoadMore() {
-    if (page < totalPages && !loadingMore) {
-      fetchStocks(query, page + 1, true);
+    if (value.trim()) {
+      debounceRef.current = setTimeout(() => {
+        fetchSearch(value);
+      }, 300);
+    } else {
+      setSearchResults([]);
+      if (sectors.length === 0) fetchSectors();
     }
   }
 
@@ -99,7 +131,6 @@ export default function ExplorePage() {
   async function toggleWatchlist(symbol: string) {
     if (!token) return;
     const inList = watchlist.has(symbol);
-
     try {
       if (inList) {
         await fetch(`${API_BASE}/watchlist/${symbol}`, {
@@ -127,16 +158,18 @@ export default function ExplorePage() {
     }
   }
 
+  const isSearching = query.trim().length > 0;
+
   return (
     <div className="animate-fade-in">
       {/* Header */}
       <section className="bg-[#f5f5f7] dark:bg-[#2d2d2f] py-12 px-6">
-        <div className="mx-auto max-w-4xl text-center">
+        <div className="mx-auto max-w-5xl text-center">
           <h1 className="text-5xl font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] mb-4">
             Explore Stocks
           </h1>
           <p className="text-lg text-[#6e6e73] dark:text-[#a1a1a6] mb-8">
-            Browse the market and build your watchlist
+            Browse by industry sector or search for any stock
           </p>
 
           {/* Search */}
@@ -166,18 +199,9 @@ export default function ExplorePage() {
         </div>
       </section>
 
-      {/* Results */}
+      {/* Content */}
       <section className="py-8 px-6">
-        <div className="mx-auto max-w-4xl">
-          {/* Status bar */}
-          {!loading && !error && (
-            <div className="flex items-center justify-between mb-6">
-              <p className="text-sm text-[#86868b]">
-                {total.toLocaleString()} stocks found
-                {query && ` for "${query}"`}
-              </p>
-            </div>
-          )}
+        <div className="mx-auto max-w-5xl">
 
           {/* Loading */}
           {loading && (
@@ -191,131 +215,148 @@ export default function ExplorePage() {
           {error && (
             <div className="text-center py-20">
               <div className="w-16 h-16 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center mx-auto mb-4">
-                <svg
-                  className="w-8 h-8 text-[#ff3b30]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
+                <svg className="w-8 h-8 text-[#ff3b30]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-medium text-[#1d1d1f] dark:text-[#f5f5f7] mb-2">
-                Failed to load stocks
-              </h3>
+              <h3 className="text-lg font-medium text-[#1d1d1f] dark:text-[#f5f5f7] mb-2">Failed to load</h3>
               <p className="text-[#86868b] mb-4">{error}</p>
-              <button
-                onClick={() => fetchStocks(query, 1, false)}
-                className="btn-apple !py-2 !px-6 text-sm"
-              >
+              <button onClick={isSearching ? () => fetchSearch(query) : fetchSectors} className="btn-apple !py-2 !px-6 text-sm">
                 Try again
               </button>
             </div>
           )}
 
-          {/* Empty state */}
-          {!loading && !error && stocks.length === 0 && (
-            <div className="text-center py-20">
-              <div className="w-16 h-16 rounded-full bg-[#f5f5f7] dark:bg-[#38383a] flex items-center justify-center mx-auto mb-4">
-                <svg
-                  className="w-8 h-8 text-[#86868b]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-[#1d1d1f] dark:text-[#f5f5f7] mb-2">
-                No stocks found
-              </h3>
-              <p className="text-[#86868b]">Try a different search term</p>
+          {/* Search Results */}
+          {!loading && !error && isSearching && (
+            <div>
+              <p className="text-sm text-[#86868b] mb-4">
+                {searchResults.length} result{searchResults.length !== 1 && "s"} for &quot;{query}&quot;
+              </p>
+              {searchResults.length === 0 ? (
+                <div className="text-center py-16">
+                  <p className="text-[#86868b]">No stocks found. Try a different search term.</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {searchResults.map((stock) => (
+                    <StockRow key={stock.symbol} stock={stock} inWatchlist={watchlist.has(stock.symbol)} onToggleWatchlist={toggleWatchlist} showWatchlist={!!user} />
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
-          {/* Stock list */}
-          {!loading && !error && stocks.length > 0 && (
-            <div className="space-y-3">
-              {stocks.map((stock) => {
-                const inWatchlist = watchlist.has(stock.symbol);
-                return (
-                  <div
-                    key={stock.symbol}
-                    className="rounded-2xl border border-[#d2d2d7] dark:border-[#38383a] bg-white dark:bg-[#2d2d2f] p-5 flex items-center justify-between card-hover"
-                  >
-                    <Link
-                      href={`/research/${stock.symbol}`}
-                      className="flex items-center gap-4 flex-1 min-w-0 group"
+          {/* Sector Groups */}
+          {!loading && !error && !isSearching && (
+            <div className="space-y-8">
+              {/* Sector summary cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {sectors.map((sector) => {
+                  const colors = getSectorColor(sector.name);
+                  const isExpanded = expandedSector === sector.name;
+                  return (
+                    <button
+                      key={sector.name}
+                      onClick={() => setExpandedSector(isExpanded ? null : sector.name)}
+                      className={`rounded-2xl border p-4 text-left transition-all ${
+                        isExpanded
+                          ? `${colors.bg} border-current ${colors.text}`
+                          : "border-[#d2d2d7] dark:border-[#48484a] bg-white dark:bg-[#2d2d2f] hover:border-[#0071e3]"
+                      }`}
                     >
-                      <div className="w-12 h-12 rounded-xl bg-[#f5f5f7] dark:bg-[#38383a] flex items-center justify-center group-hover:bg-[#0071e3] transition-colors shrink-0">
-                        <span className="text-lg font-bold text-[#1d1d1f] dark:text-[#f5f5f7] group-hover:text-white font-mono transition-colors">
-                          {stock.symbol.charAt(0)}
-                        </span>
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] group-hover:text-[#0071e3] transition-colors font-mono">
-                            {stock.symbol}
-                          </span>
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-[#f5f5f7] dark:bg-[#38383a] text-[#86868b]">
-                            {stock.exchange}
-                          </span>
-                        </div>
-                        <p className="text-sm text-[#6e6e73] dark:text-[#a1a1a6] truncate">
-                          {stock.name}
-                        </p>
-                      </div>
-                    </Link>
+                      <span className="text-2xl">{colors.icon}</span>
+                      <p className="font-semibold text-sm mt-2 text-[#1d1d1f] dark:text-[#f5f5f7]">{sector.name}</p>
+                      <p className="text-xs text-[#86868b]">{sector.count} stocks · {sector.total_market_cap}</p>
+                    </button>
+                  );
+                })}
+              </div>
 
-                    {user && (
-                      <button
-                        onClick={() => toggleWatchlist(stock.symbol)}
-                        className={`shrink-0 ml-4 rounded-full px-4 py-2 text-sm font-medium transition-all ${
-                          inWatchlist
-                            ? "bg-[#0071e3] text-white hover:bg-[#0077ed]"
-                            : "bg-[#f5f5f7] dark:bg-[#38383a] text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-[#e8e8ed] dark:hover:bg-[#48484a]"
-                        }`}
-                      >
-                        {inWatchlist ? "✓ Watching" : "+ Watch"}
-                      </button>
-                    )}
+              {/* All sectors */}
+              {sectors.map((sector) => {
+                const colors = getSectorColor(sector.name);
+                const isExpanded = expandedSector === null || expandedSector === sector.name;
+                if (!isExpanded) return null;
+                return (
+                  <div key={sector.name}>
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-xl">{colors.icon}</span>
+                      <h2 className={`text-xl font-semibold ${colors.text}`}>{sector.name}</h2>
+                      <span className="text-sm text-[#86868b]">{sector.count} stocks · {sector.total_market_cap}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {sector.stocks.map((stock) => (
+                        <StockRow key={stock.symbol} stock={stock} inWatchlist={watchlist.has(stock.symbol)} onToggleWatchlist={toggleWatchlist} showWatchlist={!!user} />
+                      ))}
+                    </div>
                   </div>
                 );
               })}
             </div>
           )}
-
-          {/* Load more */}
-          {!loading && !error && page < totalPages && (
-            <div className="text-center mt-8">
-              <button
-                onClick={handleLoadMore}
-                disabled={loadingMore}
-                className="btn-apple !py-3 !px-10 disabled:opacity-50"
-              >
-                {loadingMore ? (
-                  <span className="flex items-center gap-2">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Loading...
-                  </span>
-                ) : (
-                  `Load more (${total - stocks.length} remaining)`
-                )}
-              </button>
-            </div>
-          )}
         </div>
       </section>
+    </div>
+  );
+}
+
+function StockRow({ stock, inWatchlist, onToggleWatchlist, showWatchlist }: { stock: Stock; inWatchlist: boolean; onToggleWatchlist: (s: string) => void; showWatchlist: boolean }) {
+  return (
+    <div className="rounded-2xl border border-[#d2d2d7] dark:border-[#38383a] bg-white dark:bg-[#2d2d2f] p-4 flex items-center justify-between card-hover">
+      <Link href={`/research/${stock.symbol}`} className="flex items-center gap-4 flex-1 min-w-0 group">
+        <div className="w-11 h-11 rounded-xl bg-[#f5f5f7] dark:bg-[#38383a] flex items-center justify-center group-hover:bg-[#0071e3] transition-colors shrink-0">
+          <span className="text-base font-bold text-[#1d1d1f] dark:text-[#f5f5f7] group-hover:text-white font-mono transition-colors">
+            {stock.symbol.charAt(0)}
+          </span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] group-hover:text-[#0071e3] transition-colors font-mono">
+              {stock.symbol}
+            </span>
+            {stock.sector && stock.sector !== "Unknown" && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-[#f5f5f7] dark:bg-[#38383a] text-[#86868b] hidden sm:inline">
+                {stock.sector}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-[#6e6e73] dark:text-[#a1a1a6] truncate">{stock.name}</p>
+        </div>
+      </Link>
+
+      <div className="flex items-center gap-4 shrink-0">
+        {/* Price & Change */}
+        {stock.price != null && (
+          <div className="text-right hidden sm:block">
+            <p className="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">${stock.price.toFixed(2)}</p>
+            {stock.change_pct != null && (
+              <p className={`text-xs ${stock.change_pct >= 0 ? "text-[#34c759]" : "text-[#ff3b30]"}`}>
+                {stock.change_pct >= 0 ? "+" : ""}{stock.change_pct.toFixed(2)}%
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Market Cap */}
+        {stock.market_cap && (
+          <span className="text-xs text-[#86868b] hidden md:block w-16 text-right">{stock.market_cap}</span>
+        )}
+
+        {/* Watchlist */}
+        {showWatchlist && (
+          <button
+            onClick={() => onToggleWatchlist(stock.symbol)}
+            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+              inWatchlist
+                ? "bg-[#0071e3] text-white hover:bg-[#0077ed]"
+                : "bg-[#f5f5f7] dark:bg-[#38383a] text-[#1d1d1f] dark:text-[#f5f5f7] hover:bg-[#e8e8ed] dark:hover:bg-[#48484a]"
+            }`}
+          >
+            {inWatchlist ? "✓" : "+"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

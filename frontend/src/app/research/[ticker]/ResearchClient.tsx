@@ -42,6 +42,26 @@ interface StockQuote {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+const AGENT_COLORS: Record<string, { bg: string; text: string; border: string; accent: string }> = {
+  deepseek:  { bg: "bg-[#0071e3]/10", text: "text-[#0071e3]", border: "border-[#0071e3]/30", accent: "#0071e3" },
+  mimo:      { bg: "bg-[#34c759]/10", text: "text-[#34c759]", border: "border-[#34c759]/30", accent: "#34c759" },
+  "mimo-pro": { bg: "bg-[#af52de]/10", text: "text-[#af52de]", border: "border-[#af52de]/30", accent: "#af52de" },
+};
+
+const AGENT_ROLES: Record<string, string> = {
+  deepseek:   "Quick Analysis",
+  mimo:       "Deep Analysis",
+  "mimo-pro":  "Validation",
+};
+
+const DEFAULT_AGENT_COLOR = { bg: "bg-[#86868b]/10", text: "text-[#86868b]", border: "border-[#86868b]/30", accent: "#86868b" };
+
+const POINTS_REQUIRED_AGENTS = 200;
+
+function getAgentColor(name: string) {
+  return AGENT_COLORS[name] || DEFAULT_AGENT_COLOR;
+}
+
 export default function ResearchPage() {
   const params = useParams();
   const ticker = (params.ticker as string).toUpperCase();
@@ -222,14 +242,52 @@ export default function ResearchPage() {
       </section>
 
       {/* Agents Used */}
-      <section className="py-8 px-6 border-b border-[#d2d2d7]">
-        <div className="mx-auto max-w-4xl flex flex-wrap items-center justify-center gap-3">
-          <span className="text-sm text-[#6e6e73]">Analyzed by</span>
-          {research.agents_used.map((name) => (
-            <span key={name} className="rounded-full bg-[#f5f5f7] px-4 py-1.5 text-sm font-medium text-[#1d1d1f]">
-              {name}
-            </span>
-          ))}
+      <section className="py-10 px-6 border-b border-[#d2d2d7] dark:border-[#38383a]">
+        <div className="mx-auto max-w-4xl">
+          {user && (user.total_points ?? 0) >= POINTS_REQUIRED_AGENTS ? (
+            <>
+              <div className="text-center mb-6">
+                <p className="text-sm text-[#86868b] uppercase tracking-wider mb-1">Powered by</p>
+                <h3 className="text-2xl font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
+                  {research.agents_used.length} AI Agents
+                </h3>
+              </div>
+              <div className="flex flex-wrap justify-center gap-4">
+                {research.agents_used.map((name, index) => {
+                  const colors = getAgentColor(name);
+                  return (
+                    <div
+                      key={`card-${name}`}
+                      className={`flex items-center gap-3 rounded-2xl border ${colors.border} ${colors.bg} px-5 py-3 card-hover`}
+                    >
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold"
+                        style={{ backgroundColor: colors.accent }}
+                      >
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className={`font-semibold ${colors.text}`}>{name}</p>
+                        <p className="text-xs text-[#86868b]">{AGENT_ROLES[name] || "Analysis"}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-center text-xs text-[#86868b] mt-4">
+                Each agent analyzes independently for unbiased, multi-perspective research
+              </p>
+            </>
+          ) : (
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <span className="text-sm text-[#6e6e73] dark:text-[#a1a1a6]">Analyzed by</span>
+              {research.agents_used.map((name) => (
+                <span key={`pill-${name}`} className="rounded-full bg-[#f5f5f7] dark:bg-[#38383a] px-4 py-1.5 text-sm font-medium text-[#1d1d1f] dark:text-[#f5f5f7]">
+                  {name}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -314,34 +372,47 @@ export default function ResearchPage() {
 
             {/* Agent Tabs */}
             <div className="flex justify-center gap-3 mb-10">
-              {research.agent_analyses.map((agent) => (
-                <button
-                  key={agent.agent_name}
-                  onClick={() => setActiveAgent(activeAgent === agent.agent_name ? null : agent.agent_name)}
-                  className={`rounded-full px-6 py-3 text-sm font-medium transition-all ${
-                    activeAgent === agent.agent_name
-                      ? "bg-[#1d1d1f] text-white"
-                      : "bg-white text-[#1d1d1f] border border-[#d2d2d7] hover:border-[#1d1d1f]"
-                  }`}
-                >
-                  {agent.agent_name}
-                  {agent.response_time_ms && (
-                    <span className="ml-2 text-xs opacity-60">{(agent.response_time_ms / 1000).toFixed(1)}s</span>
-                  )}
-                </button>
-              ))}
+              {research.agent_analyses.map((agent) => {
+                const colors = getAgentColor(agent.agent_name);
+                const isActive = activeAgent === agent.agent_name;
+                return (
+                  <button
+                    key={`tab-${agent.agent_name}`}
+                    onClick={() => setActiveAgent(isActive ? null : agent.agent_name)}
+                    className={`rounded-full px-6 py-3 text-sm font-medium transition-all border ${
+                      isActive
+                        ? `${colors.bg} ${colors.text} ${colors.border}`
+                        : "bg-white dark:bg-[#2d2d2f] text-[#1d1d1f] dark:text-[#f5f5f7] border-[#d2d2d7] dark:border-[#48484a] hover:border-[#1d1d1f] dark:hover:border-[#f5f5f7]"
+                    }`}
+                  >
+                    {agent.agent_name}
+                    {agent.response_time_ms && (
+                      <span className="ml-2 text-xs opacity-60">{(agent.response_time_ms / 1000).toFixed(1)}s</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Agent Cards */}
             <div className="space-y-6">
               {research.agent_analyses.map((agent) => {
                 if (activeAgent && activeAgent !== agent.agent_name) return null;
+                const colors = getAgentColor(agent.agent_name);
                 return (
-                  <div key={agent.agent_name} className="rounded-3xl bg-white border border-[#d2d2d7] p-8 card-hover">
+                  <div key={`analysis-${agent.agent_name}`} className="rounded-3xl bg-white dark:bg-[#2d2d2f] border border-[#d2d2d7] dark:border-[#48484a] p-8 card-hover">
                     <div className="flex items-center justify-between mb-6">
-                      <div>
-                        <h3 className="text-xl font-semibold text-[#1d1d1f]">{agent.agent_name}</h3>
-                        <p className="text-sm text-[#6e6e73]">{agent.model_id}</p>
+                      <div className="flex items-center gap-4">
+                        <div
+                          className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold"
+                          style={{ backgroundColor: colors.accent }}
+                        >
+                          {agent.agent_name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <h3 className={`text-xl font-semibold ${colors.text}`}>{agent.agent_name}</h3>
+                          <p className="text-sm text-[#6e6e73] dark:text-[#a1a1a6]">{agent.model_id} · {AGENT_ROLES[agent.agent_name] || "Analysis"}</p>
+                        </div>
                       </div>
                       {agent.response_time_ms && (
                         <span className="text-sm text-[#86868b]">{(agent.response_time_ms / 1000).toFixed(1)}s</span>

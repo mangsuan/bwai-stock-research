@@ -30,6 +30,21 @@ interface PotentialPick {
   created_at: string;
 }
 
+interface TimelineSnapshot {
+  id: number;
+  pick_id: number;
+  ticker: string;
+  day_label: string;
+  snapshot_date: string;
+  price: number | null;
+  potential_score: number | null;
+  ai_summary: string | null;
+  market_cap: number | null;
+  performance_pct: number | null;
+  events: string[];
+  created_at: string;
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 function getScoreColor(score: number): string {
@@ -39,20 +54,25 @@ function getScoreColor(score: number): string {
   return "#86868b";
 }
 
+const POINTS_REQUIRED = 500;
+
 export default function PotentialStockDetailClient() {
   const params = useParams();
   const ticker = params.ticker as string;
-  const { token } = useAuth();
+  const { user, token } = useAuth();
 
   const [pick, setPick] = useState<PotentialPick | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [inWatchlist, setInWatchlist] = useState(false);
+  const [timeline, setTimeline] = useState<TimelineSnapshot[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
 
   useEffect(() => {
     if (ticker) {
       fetchPick();
       checkWatchlist();
+      fetchTimeline();
     }
   }, [ticker]);
 
@@ -87,6 +107,21 @@ export default function PotentialStockDetailClient() {
     }
   }
 
+  async function fetchTimeline() {
+    setTimelineLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/potential-stocks/timeline/${ticker}`);
+      if (res.ok) {
+        const data = await res.json();
+        setTimeline(data);
+      }
+    } catch {
+      // ignore - timeline is optional
+    } finally {
+      setTimelineLoading(false);
+    }
+  }
+
   async function toggleWatchlist() {
     if (!token) return;
     try {
@@ -110,6 +145,34 @@ export default function PotentialStockDetailClient() {
     } catch {
       // ignore
     }
+  }
+
+  // Access guard: require 500+ points
+  if (user && (user.total_points ?? 0) < POINTS_REQUIRED) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center min-h-[70vh] px-6 animate-fade-in">
+        <div className="w-20 h-20 rounded-full bg-[#ff9500]/10 flex items-center justify-center mx-auto mb-6">
+          <span className="text-4xl">🔒</span>
+        </div>
+        <h1 className="text-3xl font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] mb-3">
+          Premium Feature
+        </h1>
+        <p className="text-[#6e6e73] dark:text-[#a1a1a6] mb-2 text-center max-w-md">
+          Only users with <span className="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">500 points</span> or more can access AI Potential Stocks discovery.
+        </p>
+        <p className="text-sm text-[#86868b] mb-8 text-center">
+          You currently have <span className="font-semibold">{user.total_points ?? 0}</span> points. You need <span className="font-semibold text-[#0071e3]">{POINTS_REQUIRED - (user.total_points ?? 0)}</span> more.
+        </p>
+        <div className="flex gap-4">
+          <Link href="/profile" className="btn-apple text-sm !py-2.5 !px-6">
+            Earn or Buy Points
+          </Link>
+          <Link href="/" className="btn-apple-secondary text-sm !py-2.5 !px-6">
+            Go Home
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   if (loading) {
@@ -343,6 +406,135 @@ export default function PotentialStockDetailClient() {
               </div>
             )}
           </div>
+
+          {/* Hidden Gem Journey Timeline */}
+          {timeline.length > 0 && (
+            <div className="rounded-2xl border border-[#d2d2d7] dark:border-[#48484a] bg-white dark:bg-[#2d2d2f] p-6">
+              <h2 className="text-lg font-semibold text-[#1d1d1f] dark:text-[#f5f5f7] mb-2">
+                💎 Hidden Gem Journey Timeline
+              </h2>
+              <p className="text-sm text-[#6e6e73] dark:text-[#a1a1a6] mb-6">
+                Track how this discovery has performed since AI first identified it.
+              </p>
+
+              <div className="relative">
+                {/* Vertical line */}
+                <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-[#d2d2d7] dark:bg-[#48484a]" />
+
+                <div className="space-y-6">
+                  {timeline.map((snap, index) => {
+                    const isFirst = index === 0;
+                    const perfColor = snap.performance_pct !== null && snap.performance_pct >= 0
+                      ? "#34c759"
+                      : "#ff3b30";
+                    const dayLabel = snap.day_label === "0"
+                      ? "Discovery Day 0"
+                      : `Day ${snap.day_label}`;
+
+                    return (
+                      <div key={snap.id} className="relative pl-16">
+                        {/* Timeline node */}
+                        <div
+                          className={`absolute left-3 top-1 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold z-10 ${
+                            isFirst
+                              ? "bg-[#0071e3] text-white ring-4 ring-[#0071e3]/20"
+                              : snap.performance_pct !== null && snap.performance_pct >= 0
+                                ? "bg-[#34c759] text-white"
+                                : "bg-[#ff3b30] text-white"
+                          }`}
+                        >
+                          {isFirst ? "✦" : snap.performance_pct !== null && snap.performance_pct >= 0 ? "↑" : "↓"}
+                        </div>
+
+                        {/* Content card */}
+                        <div className="rounded-xl border border-[#e8e8ed] dark:border-[#38383a] bg-[#fbfbfd] dark:bg-[#1d1d1f] p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
+                                {dayLabel}
+                              </span>
+                              <span className="text-xs text-[#86868b]">
+                                {snap.snapshot_date
+                                  ? new Date(snap.snapshot_date).toLocaleDateString("en-US", {
+                                      month: "short",
+                                      day: "numeric",
+                                      year: "numeric",
+                                    })
+                                  : ""}
+                              </span>
+                            </div>
+                            {snap.performance_pct !== null && (
+                              <span
+                                className="text-sm font-bold px-2.5 py-0.5 rounded-full"
+                                style={{
+                                  backgroundColor: perfColor + "15",
+                                  color: perfColor,
+                                }}
+                              >
+                                {snap.performance_pct >= 0 ? "+" : ""}
+                                {snap.performance_pct.toFixed(1)}%
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-4 text-sm mb-2">
+                            {snap.price !== null && (
+                              <span className="text-[#1d1d1f] dark:text-[#f5f5f7]">
+                                Price: <strong>${snap.price.toFixed(2)}</strong>
+                              </span>
+                            )}
+                            {snap.potential_score !== null && (
+                              <span style={{ color: getScoreColor(snap.potential_score) }}>
+                                Score: <strong>{Math.round(snap.potential_score)}</strong>
+                              </span>
+                            )}
+                            {snap.market_cap !== null && snap.market_cap !== undefined && (
+                              <span className="text-[#86868b]">
+                                MCap: {typeof snap.market_cap === "number"
+                                  ? snap.market_cap >= 1e9
+                                    ? `$${(snap.market_cap / 1e9).toFixed(1)}B`
+                                    : snap.market_cap >= 1e6
+                                      ? `$${(snap.market_cap / 1e6).toFixed(1)}M`
+                                      : `$${snap.market_cap.toLocaleString()}`
+                                  : snap.market_cap}
+                              </span>
+                            )}
+                          </div>
+
+                          {snap.ai_summary && (
+                            <p className="text-xs text-[#6e6e73] dark:text-[#a1a1a6] leading-relaxed">
+                              {snap.ai_summary}
+                            </p>
+                          )}
+
+                          {snap.events && snap.events.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {snap.events.map((event, i) => (
+                                <span
+                                  key={i}
+                                  className="text-[10px] px-2 py-0.5 rounded-full bg-[#0071e3]/10 text-[#0071e3]"
+                                >
+                                  {event}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Timeline loading state */}
+          {timelineLoading && (
+            <div className="rounded-2xl border border-[#d2d2d7] dark:border-[#48484a] bg-white dark:bg-[#2d2d2f] p-6 text-center">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#0071e3] border-t-transparent mx-auto mb-2" />
+              <p className="text-sm text-[#86868b]">Loading journey timeline...</p>
+            </div>
+          )}
 
           {/* Disclaimer */}
           <p className="text-xs text-[#86868b] text-center pt-4 border-t border-[#f5f5f7] dark:border-[#38383a]">

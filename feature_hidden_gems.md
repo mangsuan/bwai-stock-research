@@ -999,6 +999,138 @@ Analytics Dashboard
 
 ---
 
+# POINT-GATING ACCESS CONTROL
+
+The Potential Stocks feature is a premium feature restricted to users with 500 or more points (Diamond level and above).
+
+## Access Rules
+
+| User State | Behavior |
+|---|---|
+| Not logged in | "✨ Potential" link navigates to /login |
+| Logged in, < 500 points | Link is visible but clicking shows a modal popup |
+| Logged in, >= 500 points | Full access to Potential Stocks feature |
+
+## Modal Popup
+
+When a user with fewer than 500 points clicks "✨ Potential" in the navbar:
+
+- Display a centered modal with backdrop blur
+- Show a lock icon (🔒)
+- Title: "Premium Feature"
+- Message: "Only users with points 500 and more can access this feature."
+- Show current points and how many more are needed
+- Provide "Earn or Buy Points" button linking to /profile
+- Provide "Maybe Later" dismiss button
+
+## Direct URL Guard
+
+Both the Potential Stocks list page (/potential-stocks) and detail page (/potential-stocks/[ticker]) include a client-side access guard:
+
+- If user has < 500 points, render an access denied screen instead of the page content
+- Show current points, required points, and the shortfall
+- Link to /profile to earn or buy points
+- This prevents bypassing the navbar modal by navigating directly to the URL
+
+## Navbar Behavior
+
+The "✨ Potential" menu item is always visible in the navbar (not hidden) for all logged-in users regardless of points. This creates awareness of the feature and incentivizes point accumulation.
+
+---
+
+# AI AGENT TRANSPARENCY (Research Results)
+
+The research results page displays AI agent information with distinct colors and roles to build user trust.
+
+## Point-Gating (200+ Points)
+
+| User Points | Display |
+|---|---|
+| < 200 | Plain gray pills showing agent names only |
+| >= 200 | Enhanced cards with colored icons, roles, and descriptions |
+
+## Agent Color Scheme
+
+| Agent | Color | Role |
+|---|---|---|
+| deepseek | Blue (#0071e3) | Quick Analysis — fast, cost-effective first pass |
+| mimo | Green (#34c759) | Deep Analysis — nuanced reasoning, catches subtle risks |
+| mimo-pro | Purple (#af52de) | Validation — second opinion, flags contradictions |
+
+## Enhanced Display (200+ Points)
+
+- Section header: "Powered by" + "{N} AI Agents"
+- Each agent shown as a colored card with:
+  - Numbered icon with agent's accent color
+  - Agent name in its color
+  - Role description
+- Footer note: "Each agent analyzes independently for unbiased, multi-perspective research"
+- Agent tabs in the Agent Analyses section also use the agent's color when active
+- Agent detail cards show a colored icon and role next to the agent name
+
+---
+
+# TERMS & CONDITIONS PAGE
+
+A Terms & Conditions page is available at /terms and linked from the footer of every page.
+
+## Sections
+
+1. Acceptance of Terms
+2. Description of Service (BWAI features overview)
+3. User Accounts (registration, security, responsibilities)
+4. Points & Membership (earning, purchasing, levels, feature gating)
+5. AI-Generated Content Disclaimer (not financial advice, AI limitations)
+6. Acceptable Use (prohibited behaviors)
+7. Intellectual Property (ownership, usage rights)
+8. Limitation of Liability (no financial liability, "as is" service)
+9. Privacy (data collection and processing)
+10. Third-Party Services (Yahoo Finance, AI providers)
+11. Modifications to Service (right to change features)
+12. Governing Law
+13. Contact Information
+
+## Footer Integration
+
+The footer in the root layout includes a "Terms & Conditions" link next to the copyright notice, separated by a pipe character.
+
+---
+
+# CONTACT PAGE
+
+A Contact page is available at /contact and linked from the footer of every page.
+
+## Contact Information Cards
+
+Three info cards displayed at the top:
+- Email: support@bwai.com
+- Response Time: Within 24 hours
+- Support: General & Technical
+
+## Contact Form
+
+Fields:
+- Name (text, required)
+- Email (email, required)
+- Subject (dropdown, required): General Inquiry, Technical Support, Feedback & Suggestions, Billing & Points, Bug Report, Partnership, Other
+- Message (textarea, required)
+
+On successful submission, shows a confirmation message with the option to send another message.
+
+## FAQ Section
+
+Four frequently asked questions displayed below the form:
+1. Is BWAI free to use? — Basic research is free, account unlocks more features, Potential Stocks requires 500 points
+2. How do I earn points? — Watch ads or purchase, manage from Profile page
+3. Is the AI analysis financial advice? — No, for informational/educational purposes only
+4. How often is the data updated? — Real-time quotes, 4-hour cache for research, daily Potential Stocks discovery
+
+## Footer Integration
+
+The footer includes a "Contact" link alongside "Terms & Conditions" and the copyright notice.
+
+---
+
 # FUTURE ROADMAP
 
 Personalized Potential Stocks

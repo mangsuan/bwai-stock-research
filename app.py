@@ -23,15 +23,22 @@ from database import (
     add_points, get_member_points, get_point_history,
     create_potential_run, complete_potential_run, fail_potential_run,
     save_potential_pick, get_todays_picks, get_pick_by_ticker, get_potential_history,
+    create_timeline_snapshot, get_timeline_snapshots, get_pending_snapshot_tickers,
 )
 
 load_dotenv()
+load_dotenv("vibe-key.env")  # Load additional config including DATABASE_URL
 
 app = FastAPI(title="BWAI Stock Research API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3001",
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -324,6 +331,92 @@ async def _fetch_stock_list() -> list[dict]:
 async def get_popular_stocks():
     """Return popular stock tickers for quick access."""
     return {"stocks": POPULAR_STOCKS}
+
+
+SECTOR_MAP = {
+    "AAPL": ("Technology", "Consumer Electronics", 3.0e12),
+    "MSFT": ("Technology", "Software", 2.8e12),
+    "GOOGL": ("Technology", "Internet Services", 1.9e12),
+    "AMZN": ("Consumer Cyclical", "E-Commerce", 1.8e12),
+    "NVDA": ("Technology", "Semiconductors", 2.7e12),
+    "META": ("Technology", "Social Media", 1.3e12),
+    "TSLA": ("Consumer Cyclical", "Electric Vehicles", 0.8e12),
+    "BRK.B": ("Financial", "Conglomerate", 0.9e12),
+    "JPM": ("Financial", "Banking", 0.6e12),
+    "V": ("Financial", "Payment Services", 0.5e12),
+    "JNJ": ("Healthcare", "Pharmaceuticals", 0.4e12),
+    "WMT": ("Consumer Defensive", "Retail", 0.5e12),
+    "PG": ("Consumer Defensive", "Household Products", 0.4e12),
+    "MA": ("Financial", "Payment Services", 0.4e12),
+    "UNH": ("Healthcare", "Health Insurance", 0.5e12),
+    "HD": ("Consumer Cyclical", "Home Improvement Retail", 0.4e12),
+    "DIS": ("Communication Services", "Entertainment", 0.2e12),
+    "BAC": ("Financial", "Banking", 0.3e12),
+    "XOM": ("Energy", "Oil & Gas", 0.5e12),
+    "KO": ("Consumer Defensive", "Beverages", 0.3e12),
+}
+
+
+@app.get("/stocks/sectors")
+async def get_stocks_by_sector():
+    """Return popular stocks grouped by industry sector with market cap data."""
+
+    async def _enrich_stock(stock: dict) -> dict:
+        """Fetch live price for a stock and combine with sector data."""
+        sector, industry, est_mc = SECTOR_MAP.get(stock["symbol"], ("Unknown", "Unknown", 0))
+        try:
+            chart_meta = await _yahoo_chart(stock["symbol"])
+            price = chart_meta.get("regularMarketPrice")
+            prev_close = chart_meta.get("chartPreviousClose")
+            change_pct = round((price - prev_close) / prev_close * 100, 2) if price and prev_close else None
+        except Exception:
+            price = None
+            change_pct = None
+        return {
+            "symbol": stock["symbol"],
+            "name": stock["name"],
+            "exchange": stock["exchange"],
+            "sector": sector,
+            "industry": industry,
+            "price": round(price, 2) if price else None,
+            "change_pct": change_pct,
+            "market_cap": _format_market_cap(est_mc),
+            "market_cap_raw": est_mc,
+        }
+
+    # Fetch all popular stocks in parallel
+    results = await asyncio.gather(*[_enrich_stock(s) for s in POPULAR_STOCKS])
+
+    # Group by sector
+    sectors: dict[str, list] = {}
+    for stock in results:
+        sector = stock["sector"]
+        if sector not in sectors:
+            sectors[sector] = []
+        sectors[sector].append(stock)
+
+    # Sort stocks within each sector by market cap (descending)
+    for sector in sectors:
+        sectors[sector].sort(key=lambda s: s["market_cap_raw"], reverse=True)
+
+    # Sort sectors by total market cap (descending)
+    sorted_sectors = sorted(
+        sectors.items(),
+        key=lambda kv: sum(s["market_cap_raw"] for s in kv[1]),
+        reverse=True,
+    )
+
+    return {
+        "sectors": [
+            {
+                "name": sector,
+                "stocks": stocks,
+                "total_market_cap": _format_market_cap(sum(s["market_cap_raw"] for s in stocks)),
+                "count": len(stocks),
+            }
+            for sector, stocks in sorted_sectors
+        ]
+    }
 
 
 @app.get("/stocks")
@@ -1285,6 +1378,7 @@ async def _analyze_single_stock(stock_data: dict) -> dict | None:
         "company_name": company_name,
         "sector": stock_data.get("sector", "Unknown"),
         "price": stock_data.get("price"),
+        "market_cap": stock_data.get("market_cap"),
         "potential_score": potential_score,
         "confidence": confidence,
         "category": _get_category(potential_score),
@@ -1378,9 +1472,26 @@ async def run_potential_stocks_discovery(max_stocks: int = 30) -> dict:
         picks.sort(key=lambda x: x["potential_score"], reverse=True)
         top_picks = picks[:10]
 
-        # 6. Save to database
+        # 6. Save to database and create Day 0 timeline snapshots
         for pick in top_picks:
-            await save_potential_pick(run_id, pick)
+            pick_id = await save_potential_pick(run_id, pick)
+            # Create Day 0 snapshot for journey timeline
+            try:
+                stock_data = stock_data_map.get(pick["ticker"], {})
+                await create_timeline_snapshot(
+                    pick_id=pick_id,
+                    ticker=pick["ticker"],
+                    day_label="0",
+                    snapshot_date=datetime.now(timezone.utc),
+                    price=pick.get("price"),
+                    potential_score=pick.get("potential_score"),
+                    ai_summary=pick.get("ai_summary"),
+                    market_cap=stock_data.get("market_cap"),
+                    performance_pct=0.0,
+                    events=["AI discovered this stock"],
+                )
+            except Exception:
+                pass  # Don't fail the run if snapshot creation fails
 
         await complete_potential_run(run_id, len(stock_data_map), len(top_picks))
 
@@ -1432,6 +1543,15 @@ async def get_potential_stocks_history(limit: int = 20, offset: int = 0):
     return await get_potential_history(limit=limit, offset=offset)
 
 
+@app.get("/potential-stocks/timeline/{ticker}")
+async def get_potential_stock_timeline(ticker: str):
+    """Get timeline snapshots for a hidden gem's journey."""
+    snapshots = await get_timeline_snapshots(ticker.upper())
+    if not snapshots:
+        raise HTTPException(status_code=404, detail="No timeline data found for this ticker")
+    return snapshots
+
+
 @app.get("/potential-stocks/{ticker}", response_model=PotentialPickResponse)
 async def get_potential_stock_detail(ticker: str):
     """Get detailed potential stock analysis for a ticker."""
@@ -1446,7 +1566,79 @@ async def trigger_potential_stocks_run(max_stocks: int = 30):
     """Manually trigger a potential stocks discovery run."""
     max_stocks = max(5, min(max_stocks, 100))
     result = await run_potential_stocks_discovery(max_stocks=max_stocks)
+
+    # Also check and create any pending timeline snapshots
+    try:
+        pending = await get_pending_snapshot_tickers()
+        for item in pending:
+            try:
+                data = await fetch_stock_data(item["ticker"])
+                if not data:
+                    continue
+                current_price = data.get("price")
+                price_at_pick = item.get("price_at_pick")
+                performance_pct = None
+                if current_price and price_at_pick and price_at_pick > 0:
+                    performance_pct = round(((current_price - price_at_pick) / price_at_pick) * 100, 2)
+                await create_timeline_snapshot(
+                    pick_id=item["pick_id"],
+                    ticker=item["ticker"],
+                    day_label=item["day_label"],
+                    snapshot_date=item["snapshot_date"],
+                    price=current_price,
+                    market_cap=data.get("market_cap"),
+                    performance_pct=performance_pct,
+                    events=[f"Day {item['day_label']} snapshot"],
+                )
+            except Exception:
+                pass
+    except Exception:
+        pass
+
     return result
+
+
+@app.post("/potential-stocks/snapshots/check")
+async def check_timeline_snapshots():
+    """Check and create missing timeline snapshots for past discoveries."""
+    pending = await get_pending_snapshot_tickers()
+    created = 0
+    errors = 0
+
+    for item in pending:
+        try:
+            data = await fetch_stock_data(item["ticker"])
+            if not data:
+                continue
+
+            current_price = data.get("price")
+            price_at_pick = item.get("price_at_pick")
+
+            # Calculate performance %
+            performance_pct = None
+            if current_price and price_at_pick and price_at_pick > 0:
+                performance_pct = round(((current_price - price_at_pick) / price_at_pick) * 100, 2)
+
+            await create_timeline_snapshot(
+                pick_id=item["pick_id"],
+                ticker=item["ticker"],
+                day_label=item["day_label"],
+                snapshot_date=item["snapshot_date"],
+                price=current_price,
+                market_cap=data.get("market_cap"),
+                performance_pct=performance_pct,
+                events=[f"Day {item['day_label']} snapshot"],
+            )
+            created += 1
+        except Exception:
+            errors += 1
+
+    return {
+        "status": "completed",
+        "pending_count": len(pending),
+        "snapshots_created": created,
+        "errors": errors,
+    }
 
 
 if __name__ == "__main__":
