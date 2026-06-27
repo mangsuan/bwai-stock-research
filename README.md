@@ -1,233 +1,238 @@
-# BWAI Stock Research
+# BWAI — Buy With AI
 
-BWAI (Buy With AI) is an AI-powered stock research assistant that uses **multiple AI agents** to analyze stocks and provide balanced investment insights.
+AI-powered stock research assistant that transforms market data into structured insights using multiple AI agents.
 
-## How It Works
-
-```
-User enters ticker (e.g., AAPL)
-        ↓
-Yahoo Finance API → Real-time price data
-        ↓
-┌───────────────────────────────────────┐
-│   Multi-Agent Analysis (parallel)     │
-│                                       │
-│   DeepSeek ──→ Quick Analysis ───┐    │
-│   mimo     ──→ Deep Analysis  ───┤    │
-│   mimo-pro ──→ Validation     ───┤    │
-│                                    │   │
-│            ┌───────────────────────┘   │
-│            ↓                           │
-│   Judge AI (mimo-v2.5-pro)            │
-│   Synthesizes all agent feedback      │
-│            ↓                           │
-│   Final Research Output               │
-└───────────────────────────────────────┘
-        ↓
-PostgreSQL Cache (4h TTL)
-        ↓
-Web UI + Mobile App (shows individual + final)
-```
+🌐 **Live:** https://mangsuan.github.io/bwai-stock-research
 
 ## Features
 
-- **Multi-Agent Analysis**: 3 AI agents analyze each stock in parallel
-- **Judge Synthesis**: A judge AI combines all feedback into a balanced final assessment
-- **Potential Stocks**: AI-powered hidden gem discovery — finds underfollowed stocks with strong growth potential
-- **Real-Time Data**: Yahoo Finance API for live prices and market metrics
-- **Caching**: PostgreSQL cache with 4-hour TTL for fast repeat lookups
-- **Individual Views**: See what each AI agent thinks alongside the final synthesis
-- **User Authentication**: Register/login with username/password or OAuth (Google, Facebook)
-- **Watchlist**: Save your favorite stocks for quick access
-- **User Profile**: Upload avatar, edit display name, toggle dark/light theme
-- **Member System**: Earn points by watching ads or purchasing, level up from Entry to Master
-- **Dark Mode**: Full dark mode support on both web and mobile
-- **Apple-Inspired UI**: Clean, minimalist design with smooth animations
-- **Mobile App**: React Native / Expo app for iOS and Android
+### Stock Research
+- Multi-agent analysis with 3 AI agents (DeepSeek, mimo, mimo-pro)
+- Bull/bear case synthesis with balanced conclusion
+- Real-time stock quotes from Yahoo Finance
+- Research cache with 4-hour TTL
+- Colored agent badges (200+ points)
+
+### Stock Rankings
+- **Global Ranking** — Top companies ranked by market cap
+- **By Country** — 16 countries with expandable stock lists
+- **By Category** — 9 sectors with color-coded cards
+- Live prices from Yahoo Finance
+
+### AI Hidden Gem Discovery
+- Daily AI-powered stock discovery
+- 7 specialized agents with weighted scoring
+- Hidden Gem Journey Timeline tracking
+- Requires 500+ member points
+
+### Admin Panel
+- User management (create, edit, suspend, delete)
+- Transaction oversight with filters
+- Purchase approval system
+- Per-user page visibility control
+- Edit user points and levels
+
+### Member System
+- Points earned via ad rewards or purchases
+- 7 membership levels (Entry → Master)
+- Feature gating based on points
+- Expandable points history
+
+### Additional Features
+- Contact page with form and FAQ
+- Terms & Conditions page
+- Dark/light theme toggle
+- Apple-inspired UI with premium animations
+- Mobile app (React Native / Expo)
 
 ## Tech Stack
 
 | Component | Technology |
-|-----------|------------|
-| Backend API | FastAPI (Python) |
-| Financial Data | Yahoo Finance API |
-| AI Agents | DeepSeek, mimo, mimo-pro |
-| Judge AI | mimo-v2.5-pro |
-| Database | PostgreSQL (asyncpg) |
+|-----------|-----------|
+| Backend | FastAPI (Python) |
+| Database | PostgreSQL / SQLite |
+| Frontend | Next.js 16 + Tailwind CSS |
+| Mobile | React Native / Expo |
+| AI | DeepSeek, mimo, mimo-pro |
 | Auth | JWT + OAuth (Google, Facebook) |
-| Frontend Web | Next.js + Tailwind CSS |
-| Frontend Mobile | React Native / Expo |
-| File Storage | Local uploads (avatars) |
+| Deployment | GitHub Pages |
 
-## Getting Started
-
-### Option 1: Docker (Recommended)
+## Quick Start
 
 ```bash
-# Clone the repository
+# Clone
 git clone https://github.com/mangsuan/bwai-stock-research.git
 cd bwai-stock-research
 
-# Start with Docker Compose
-./deploy.sh start
+# Install backend deps
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+
+# Install frontend deps
+cd frontend && npm install && cd ..
+
+# Start all services
+./start.sh
 ```
 
-Open `http://localhost:3000`
+Services:
+- Backend: http://localhost:8000
+- Frontend: http://localhost:3001
+- API Docs: http://localhost:8000/docs
 
-### Option 2: Local Development
+## Service Management
 
-**Prerequisites:**
-- Python 3.11+
-- Node.js 18+
-- PostgreSQL (or SQLite for local dev)
-
-**Backend:**
 ```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure environment
-cp vibe-key.env .env
-# Edit .env with your database URL and API keys
-
-# Start the server
-uvicorn app:app --reload --port 8000
+./start.sh              # Start all
+./start.sh backend      # Start backend only
+./start.sh frontend     # Start frontend only
+./stop.sh               # Stop all
+./restart.sh            # Restart all
 ```
 
-**Frontend (Web):**
+## Create Admin User
+
 ```bash
-cd frontend
-npm install
-npm run dev
+# Register a user first, then promote:
+.venv/bin/python3 -c "import asyncio; from database import admin_update_user; asyncio.run(admin_update_user(1, role='admin'))"
 ```
 
-Open `http://localhost:3000`
+## Pages
 
-**Frontend (Mobile):**
-```bash
-cd mobile
-npm install
-npm run start
-```
-
-Scan the QR code with Expo Go on your phone.
+| Page | URL | Description |
+|------|-----|-------------|
+| Home | `/` | Hero, search, quick tickers, stats |
+| Explore | `/explore` | Sector grouping, search, watchlist |
+| Rankings | `/rankings` | Global ranking by market cap |
+| By Country | `/rankings/countries` | 16 countries |
+| By Category | `/rankings/categories` | 9 sectors |
+| Research | `/research/{ticker}` | AI analysis with colored agents |
+| Potential | `/potential-stocks` | Hidden gem discovery (500+ pts) |
+| Admin | `/admin` | Dashboard, users, transactions, purchases |
+| Profile | `/profile` | Points, theme, avatar |
+| Watchlist | `/watchlist` | Saved stocks |
+| Contact | `/contact` | Contact form + FAQ |
+| Terms | `/terms` | Terms & Conditions |
 
 ## API Endpoints
 
 | Endpoint | Description |
 |----------|-------------|
 | `GET /` | API status |
-| `GET /quote/{ticker}` | Real-time stock quote |
+| `GET /stocks?q=` | Search stocks |
+| `GET /stocks/sectors` | Stocks by sector |
+| `GET /quote/{ticker}` | Real-time quote |
 | `GET /research/{ticker}` | Multi-agent research |
-| `GET /agents` | List available AI agents |
-| `GET /cache/{ticker}` | Check cache status |
-| `POST /auth/register` | Register new user |
+| `GET /rankings/global` | Global ranking |
+| `GET /rankings/countries` | By country |
+| `GET /rankings/categories` | By category |
+| `GET /potential-stocks/today` | Hidden gem picks |
+| `POST /auth/register` | Register |
 | `POST /auth/login` | Login |
-| `GET /auth/google` | Google OAuth |
-| `GET /auth/facebook` | Facebook OAuth |
-| `GET /auth/me` | Get current user (with profile & member data) |
-| `PUT /auth/profile` | Update display name and theme |
-| `POST /auth/avatar` | Upload profile picture |
-| `GET /member/points` | Get member points and level |
-| `POST /member/points/earn` | Earn points (ad reward) |
-| `POST /member/points/purchase` | Purchase points |
-| `GET /member/history` | Point transaction history |
-| `GET /watchlist` | Get user's watchlist |
-| `POST /watchlist` | Add ticker to watchlist |
-| `DELETE /watchlist/{ticker}` | Remove from watchlist |
-| `GET /watchlist/{ticker}/check` | Check if ticker is in watchlist |
-| `GET /potential-stocks/today` | Get latest potential stock picks |
-| `GET /potential-stocks/history` | Browse past discovery runs |
-| `GET /potential-stocks/{ticker}` | Get detailed pick with agent scores |
-| `POST /potential-stocks/run` | Trigger discovery run |
+| `GET /admin/stats` | Admin dashboard |
+| `GET /admin/users` | List users |
+| `POST /admin/purchases/{id}/approve` | Approve purchase |
 | `GET /docs` | Swagger UI |
 
 ## Member Levels
 
-| Points | Level | Badge |
-|--------|-------|-------|
-| 0–99 | Entry | ⭐ |
-| 100–199 | Bronze | 🥉 |
-| 200–299 | Silver | 🥈 |
-| 300–399 | Gold | 🥇 |
-| 400–499 | Platinum | 💎 |
-| 500–999 | Diamond | 💠 |
-| 1000+ | Master | 👑 |
+| Points | Level |
+|--------|-------|
+| 0–99 | Entry |
+| 100–199 | Bronze |
+| 200–299 | Silver |
+| 300–399 | Gold |
+| 400–499 | Platinum |
+| 500–999 | Diamond |
+| 1000+ | Master |
+
+## Feature Gating
+
+| Feature | Points Required |
+|---------|----------------|
+| Colored AI agent badges | 200+ |
+| Potential Stocks | 500+ |
+| Admin panel | Admin role |
+
+## Environment Variables
+
+Backend (`vibe-key.env`):
+```
+AI_API_URL=https://proxy.vibecode.tours/v1/chat/completions
+AI_API_KEY=your-key
+DATABASE_URL=sqlite+aiosqlite:///./bwai.db
+JWT_SECRET=your-secret
+```
+
+Frontend (`frontend/.env.local`):
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+Mobile:
+```
+EXPO_PUBLIC_API_BASE=http://localhost:8000
+```
 
 ## Project Structure
 
 ```
 bwai-stock-research/
 ├── app.py                  # FastAPI backend
-├── database.py             # PostgreSQL models & cache
+├── database.py             # Database models & logic
 ├── requirements.txt        # Python dependencies
-├── uploads/                # User avatar uploads
+├── start.sh / stop.sh      # Service management
 ├── frontend/               # Next.js web app
 │   └── src/
 │       ├── app/
-│       │   ├── page.tsx              # Home page
-│       │   ├── login/page.tsx        # Login page
-│       │   ├── register/page.tsx     # Register page
-│       │   ├── explore/page.tsx      # Stock explorer
-│       │   ├── watchlist/page.tsx    # Watchlist page
-│       │   ├── profile/page.tsx      # Profile page
-│       │   ├── potential-stocks/
-│       │   │   ├── page.tsx          # Potential stocks listing
-│       │   │   └── [ticker]/
-│       │   │       └── page.tsx      # Potential stock detail
-│       │   └── research/[ticker]/
-│       │       └── page.tsx          # Research results
+│       │   ├── page.tsx              # Home
+│       │   ├── explore/page.tsx      # Explore
+│       │   ├── rankings/             # Rankings
+│       │   ├── research/[ticker]/    # Research
+│       │   ├── potential-stocks/     # Hidden gems
+│       │   ├── admin/                # Admin panel
+│       │   ├── profile/page.tsx      # Profile
+│       │   ├── contact/page.tsx      # Contact
+│       │   └── terms/page.tsx        # Terms
 │       ├── components/
-│       │   ├── Navbar.tsx            # Navigation bar
-│       │   └── MemberBadge.tsx       # Member level badge
+│       │   ├── Navbar.tsx
+│       │   └── MemberBadge.tsx
 │       └── contexts/
-│           ├── AuthContext.tsx       # Auth state management
-│           └── ThemeContext.tsx      # Dark/light theme
-├── mobile/                 # React Native / Expo app
+├── mobile/                 # React Native app
 │   ├── app/
-│   │   ├── (tabs)/
-│   │   │   ├── index.tsx            # Home/search
-│   │   │   ├── watchlist.tsx        # Watchlist
-│   │   │   └── profile.tsx          # Profile
-│   │   ├── research/[ticker].tsx    # Research detail
-│   │   ├── login.tsx                # Login
-│   │   └── register.tsx             # Register
 │   ├── components/
-│   │   └── MemberBadge.tsx          # Member level badge
 │   ├── contexts/
-│   │   ├── AuthContext.tsx          # Auth state
-│   │   └── ThemeContext.tsx         # Theme provider
 │   └── lib/
-│       └── api.ts                   # API fetch wrapper
-├── data/                   # Stock data files
-├── proposal_mangsuan.md    # Product vision
-├── report.md               # Project report
-└── slides/pitch.md         # Presentation deck
+└── uploads/                # Avatar uploads
 ```
 
 ## Documentation
 
-- [proposal_mangsuan.md](proposal_mangsuan.md) — Product vision and tech spec
-- [report.md](report.md) — Project report with methodology
-- [slides/pitch.md](slides/pitch.md) — Pitch deck (6 slides)
+- [CLAUDE.md](CLAUDE.md) — Development guide
+- [feature_hidden_gems.md](feature_hidden_gems.md) — Feature specification
+- [proposal_mangsuan.md](proposal_mangsuan.md) — Product vision
+- [report.md](report.md) — Project report
 
-## Definition of Done Status
+## Definition of Done
 
 | Requirement | Status |
 |-------------|--------|
 | User login | ✅ JWT + OAuth |
-| Stock ticker search | ✅ Yahoo Finance |
-| AI research summary | ✅ Multi-agent |
-| Bull vs Bear analysis | ✅ Research page |
+| Stock search | ✅ Yahoo Finance |
+| AI research | ✅ Multi-agent |
+| Bull/Bear analysis | ✅ Research page |
+| Stock rankings | ✅ Global, Country, Category |
 | Potential Stocks | ✅ AI hidden gem discovery |
+| Admin panel | ✅ User/transaction management |
 | Watchlist | ✅ Add/remove |
-| Cache (4h TTL) | ✅ PostgreSQL |
-| User profile | ✅ Avatar, display name, theme |
-| Member system | ✅ Points, levels, earn/buy |
+| Contact page | ✅ Form + FAQ |
+| Terms page | ✅ 13 sections |
+| User profile | ✅ Avatar, theme, points |
+| Member system | ✅ Points, levels, gating |
 | Dark mode | ✅ Web + Mobile |
 | Mobile app | ✅ React Native / Expo |
-| MCP | ✅ `.mcp.json` |
-| Skill | ✅ `.claude/skills/` |
-| Agent | ✅ `.claude/agents/` |
-| README | ✅ Complete |
-| Deploy | ⬜ Planned |
+| Deploy | ✅ GitHub Pages |
+
+## License
+
+© 2026 BWAI. All rights reserved.
