@@ -170,7 +170,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f7] dark:bg-[#111111]">
+    <div className="min-h-screen bg-[#f5f5f7] dark:bg-[#1d1d1f]">
       {/* Hero */}
       <section className="bg-[#f5f5f7] dark:bg-[#2d2d2f] py-12">
         <div className="mx-auto max-w-2xl px-6 text-center">
