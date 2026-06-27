@@ -1131,6 +1131,74 @@ The footer includes a "Contact" link alongside "Terms & Conditions" and the copy
 
 ---
 
+# ADMIN PANEL
+
+An admin panel is available at /admin for users with the admin role.
+
+## Access Control
+
+- Users have a `role` field: "user" (default) or "admin"
+- Users have a `status` field: "active" (default) or "suspended"
+- Admin link appears in navbar only for admin users (⚡ Admin)
+- Admin pages check role client-side; API endpoints check server-side (403 if not admin)
+- Suspended users get 403 on all protected endpoints
+
+## Admin Dashboard (/admin)
+
+Displays key metrics:
+- Total users, active users, suspended users, admin count
+- Pending purchases awaiting approval
+- Total transactions and points distributed
+
+## User Management (/admin/users)
+
+- List all users with search (username, email)
+- Create new user (username, email, password, role)
+- Suspend/activate user accounts
+- Delete user (cascades to points, transactions, watchlist)
+- Cannot delete or suspend yourself
+
+## Transactions (/admin/transactions)
+
+- View all point transactions across all users
+- Filter by: All, Purchases, Ad Rewards, Pending
+- Shows username, amount, source, approval status, date
+
+## Purchase Approvals (/admin/purchases)
+
+- Purchase endpoint now creates "pending" transactions (not auto-approved)
+- Admin sees list of pending purchases with user, amount, description
+- Approve button: credits points to user and marks transaction approved
+- Reject button: marks transaction rejected, no points credited
+
+## Page Visibility Control
+
+- Admin can set per-user page visibility via API
+- `PUT /admin/users/{id}/visibility` with JSON body: `{"visibility": {"explore": true, "potential": false}}`
+- null visibility = all pages visible (default)
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+|---|---|---|
+| /admin/stats | GET | Dashboard statistics |
+| /admin/users | GET | List all users |
+| /admin/users | POST | Create user |
+| /admin/users/{id} | PUT | Update user |
+| /admin/users/{id} | DELETE | Delete user |
+| /admin/users/{id}/suspend | POST | Suspend user |
+| /admin/users/{id}/activate | POST | Activate user |
+| /admin/users/{id}/visibility | PUT | Set page visibility |
+| /admin/transactions | GET | List all transactions |
+| /admin/purchases/pending | GET | Pending purchases |
+| /admin/purchases/{id}/approve | POST | Approve purchase |
+| /admin/purchases/{id}/reject | POST | Reject purchase |
+
+## Database Changes
+
+- `users` table: added `role` (default "user"), `status` (default "active"), `page_visibility` (JSON, nullable)
+- `point_transactions` table: added `approval_status` (default "approved"), `approved_by` (admin user id), `approved_at`
+
 # FUTURE ROADMAP
 
 Personalized Potential Stocks

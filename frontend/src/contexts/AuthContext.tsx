@@ -11,6 +11,8 @@ interface User {
   avatar_url: string | null;
   member_level: string;
   total_points: number;
+  role: string;
+  status: string;
 }
 
 interface AuthContextType {

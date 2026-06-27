@@ -65,6 +65,14 @@ export default function Navbar() {
                 >
                   Watchlist
                 </Link>
+                {user.role === "admin" && (
+                  <Link
+                    href="/admin"
+                    className="text-sm text-[#ff9500] dark:text-[#ff9500] hover:text-[#ff6b00] font-medium transition-colors"
+                  >
+                    ⚡ Admin
+                  </Link>
+                )}
                 <Link
                   href="/profile"
                   className="flex items-center gap-2 group"

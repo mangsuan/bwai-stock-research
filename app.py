@@ -24,6 +24,9 @@ from database import (
     create_potential_run, complete_potential_run, fail_potential_run,
     save_potential_pick, get_todays_picks, get_pick_by_ticker, get_potential_history,
     create_timeline_snapshot, get_timeline_snapshots, get_pending_snapshot_tickers,
+    get_all_users, admin_create_user, admin_update_user, admin_delete_user,
+    get_all_transactions, get_pending_purchases, approve_purchase, reject_purchase,
+    update_user_page_visibility, add_points_pending,
 )
 
 load_dotenv()
@@ -121,9 +124,18 @@ async def require_user(credentials: HTTPAuthorizationCredentials = Depends(secur
         user = await get_user_by_id(int(user_id))
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")
+        if user.get("status") == "suspended":
+            raise HTTPException(status_code=403, detail="Account suspended")
         return user
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+async def require_admin(user: dict = Depends(require_user)) -> dict:
+    """Require admin role. Raises 403 if not admin."""
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
 
 
 @app.on_event("startup")
@@ -741,13 +753,14 @@ async def earn_points(req: PointsEarnRequest, user: dict = Depends(require_user)
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.post("/member/points/purchase", response_model=MemberPointsResponse)
+@app.post("/member/points/purchase")
 async def purchase_points(req: PointsEarnRequest, user: dict = Depends(require_user)):
-    """Purchase points manually."""
+    """Purchase points (requires admin approval)."""
     if req.amount <= 0 or req.amount > 100000:
         raise HTTPException(status_code=400, detail="Amount must be between 1 and 100000")
     try:
-        return await add_points(user["id"], req.amount, "purchase", req.description or "Manual purchase")
+        result = await add_points_pending(user["id"], req.amount, "purchase", req.description or "Point purchase")
+        return {"message": "Purchase submitted for admin approval", "transaction_id": result["id"], "status": "pending"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -756,6 +769,144 @@ async def purchase_points(req: PointsEarnRequest, user: dict = Depends(require_u
 async def get_my_point_history(user: dict = Depends(require_user)):
     """Get point transaction history."""
     return await get_point_history(user["id"])
+
+
+# ---------- Admin Endpoints ----------
+
+
+@app.get("/admin/stats")
+async def admin_stats(admin: dict = Depends(require_admin)):
+    """Get admin dashboard stats."""
+    from sqlalchemy import select, func as sql_func
+
+    users = await get_all_users()
+    pending = await get_pending_purchases()
+    transactions = await get_all_transactions(limit=1000)
+
+    return {
+        "total_users": len(users),
+        "active_users": len([u for u in users if u["status"] == "active"]),
+        "suspended_users": len([u for u in users if u["status"] == "suspended"]),
+        "admin_users": len([u for u in users if u["role"] == "admin"]),
+        "pending_purchases": len(pending),
+        "total_transactions": len(transactions),
+        "total_points_distributed": sum(t["amount"] for t in transactions if t["approval_status"] == "approved" and t["amount"] > 0),
+    }
+
+
+@app.get("/admin/users")
+async def admin_list_users(admin: dict = Depends(require_admin)):
+    """List all users."""
+    return await get_all_users()
+
+
+@app.post("/admin/users")
+async def admin_create_user_endpoint(
+    username: str = "",
+    email: str = "",
+    password: str = "",
+    role: str = "user",
+    admin: dict = Depends(require_admin),
+):
+    """Create a new user."""
+    if not username or not email or not password:
+        raise HTTPException(status_code=400, detail="username, email, and password required")
+    try:
+        hashed = pwd_context.hash(password)
+        return await admin_create_user(username, email, hashed, role)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+class AdminUserUpdate(BaseModel):
+    username: str | None = None
+    email: str | None = None
+    display_name: str | None = None
+    role: str | None = None
+    status: str | None = None
+    theme: str | None = None
+
+class AdminVisibilityUpdate(BaseModel):
+    visibility: dict | None = None
+
+@app.put("/admin/users/{user_id}")
+async def admin_update_user_endpoint(user_id: int, req: AdminUserUpdate, admin: dict = Depends(require_admin)):
+    """Update a user."""
+    try:
+        kwargs = {k: v for k, v in req.model_dump().items() if v is not None}
+        return await admin_update_user(user_id, **kwargs)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/admin/users/{user_id}")
+async def admin_delete_user_endpoint(user_id: int, admin: dict = Depends(require_admin)):
+    """Delete a user."""
+    if user_id == admin["id"]:
+        raise HTTPException(status_code=400, detail="Cannot delete yourself")
+    success = await admin_delete_user(user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"message": "User deleted"}
+
+
+@app.post("/admin/users/{user_id}/suspend")
+async def admin_suspend_user(user_id: int, admin: dict = Depends(require_admin)):
+    """Suspend a user."""
+    if user_id == admin["id"]:
+        raise HTTPException(status_code=400, detail="Cannot suspend yourself")
+    try:
+        return await admin_update_user(user_id, status="suspended")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/admin/users/{user_id}/activate")
+async def admin_activate_user(user_id: int, admin: dict = Depends(require_admin)):
+    """Activate a suspended user."""
+    try:
+        return await admin_update_user(user_id, status="active")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/admin/transactions")
+async def admin_list_transactions(limit: int = 100, offset: int = 0, admin: dict = Depends(require_admin)):
+    """List all point transactions."""
+    return await get_all_transactions(limit, offset)
+
+
+@app.get("/admin/purchases/pending")
+async def admin_pending_purchases(admin: dict = Depends(require_admin)):
+    """List pending purchase approvals."""
+    return await get_pending_purchases()
+
+
+@app.post("/admin/purchases/{transaction_id}/approve")
+async def admin_approve_purchase(transaction_id: int, admin: dict = Depends(require_admin)):
+    """Approve a pending purchase."""
+    success = await approve_purchase(transaction_id, admin["id"])
+    if not success:
+        raise HTTPException(status_code=404, detail="Transaction not found or not pending")
+    return {"message": "Purchase approved and points credited"}
+
+
+@app.post("/admin/purchases/{transaction_id}/reject")
+async def admin_reject_purchase(transaction_id: int, admin: dict = Depends(require_admin)):
+    """Reject a pending purchase."""
+    success = await reject_purchase(transaction_id, admin["id"])
+    if not success:
+        raise HTTPException(status_code=404, detail="Transaction not found or not pending")
+    return {"message": "Purchase rejected"}
+
+
+@app.put("/admin/users/{user_id}/visibility")
+async def admin_set_visibility(user_id: int, req: AdminVisibilityUpdate, admin: dict = Depends(require_admin)):
+    """Set page visibility for a user."""
+    try:
+        return await update_user_page_visibility(user_id, req.visibility)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ---------- OAuth Endpoints ----------

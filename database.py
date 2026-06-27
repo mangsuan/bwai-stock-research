@@ -35,6 +35,9 @@ class User(Base):
     avatar_url = Column(String(500), nullable=True)
     display_name = Column(String(100), nullable=True)     # Custom display name
     theme = Column(String(10), nullable=False, server_default="light")  # "light" or "dark"
+    role = Column(String(10), nullable=False, server_default="user")  # "user" or "admin"
+    status = Column(String(15), nullable=False, server_default="active")  # "active" or "suspended"
+    page_visibility = Column(Text, nullable=True)  # JSON: {"explore":true,"potential":false,...} null=all visible
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -177,6 +180,9 @@ class PointTransaction(Base):
     amount = Column(Integer, nullable=False)  # positive = earn, negative = spend
     source = Column(String(20), nullable=False)  # "ad_reward" or "purchase"
     description = Column(String(200), nullable=True)
+    approval_status = Column(String(15), nullable=False, server_default="approved")  # "pending", "approved", "rejected"
+    approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)  # admin user id
+    approved_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -505,6 +511,8 @@ async def get_user_by_id(user_id: int) -> dict | None:
             "email": user.email,
             "avatar_url": user.avatar_url,
             "oauth_provider": user.oauth_provider,
+            "role": user.role or "user",
+            "status": user.status or "active",
             "created_at": user.created_at.isoformat() if user.created_at else None,
         }
 
@@ -727,6 +735,9 @@ async def get_user_full(user_id: int) -> dict | None:
             "theme": user.theme,
             "avatar_url": user.avatar_url,
             "oauth_provider": user.oauth_provider,
+            "role": user.role or "user",
+            "status": user.status or "active",
+            "page_visibility": user.page_visibility,
             "created_at": user.created_at.isoformat() if user.created_at else None,
             "total_points": points,
             "member_level": level,
@@ -1115,3 +1126,245 @@ async def get_pending_snapshot_tickers() -> list[dict]:
                     })
 
         return pending
+
+
+# ---------- Admin Functions ----------
+
+
+async def get_all_users() -> list[dict]:
+    """Get all users with their points and status."""
+    from sqlalchemy import select
+
+    async with async_session() as session:
+        stmt = select(User).order_by(User.created_at.desc())
+        result = await session.execute(stmt)
+        users = result.scalars().all()
+
+        user_list = []
+        for u in users:
+            mp_stmt = select(MemberPoints).where(MemberPoints.user_id == u.id)
+            mp_result = await session.execute(mp_stmt)
+            mp = mp_result.scalar_one_or_none()
+
+            user_list.append({
+                "id": u.id,
+                "username": u.username,
+                "email": u.email,
+                "display_name": u.display_name,
+                "role": u.role or "user",
+                "status": u.status or "active",
+                "theme": u.theme,
+                "avatar_url": u.avatar_url,
+                "oauth_provider": u.oauth_provider,
+                "total_points": mp.total_points if mp else 0,
+                "member_level": mp.member_level if mp else "entry",
+                "page_visibility": u.page_visibility,
+                "created_at": u.created_at.isoformat() if u.created_at else None,
+            })
+        return user_list
+
+
+async def admin_create_user(username: str, email: str, password_hash: str, role: str = "user") -> dict:
+    """Create a user (admin)."""
+    from sqlalchemy import select
+
+    async with async_session() as session:
+        existing = select(User).where((User.username == username) | (User.email == email))
+        result = await session.execute(existing)
+        if result.scalar_one_or_none():
+            raise ValueError("Username or email already exists")
+
+        user = User(
+            username=username,
+            email=email,
+            hashed_password=password_hash,
+            role=role,
+            status="active",
+        )
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+
+        return {"id": user.id, "username": user.username, "email": user.email, "role": user.role}
+
+
+async def admin_update_user(user_id: int, **kwargs) -> dict:
+    """Update user fields (admin)."""
+    async with async_session() as session:
+        user = await session.get(User, user_id)
+        if not user:
+            raise ValueError("User not found")
+
+        allowed = {"username", "email", "display_name", "role", "status", "theme"}
+        for key, val in kwargs.items():
+            if key in allowed and val is not None:
+                setattr(user, key, val)
+
+        await session.commit()
+        await session.refresh(user)
+
+        return {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "display_name": user.display_name,
+            "role": user.role,
+            "status": user.status,
+        }
+
+
+async def admin_delete_user(user_id: int) -> bool:
+    """Delete a user and their data."""
+    async with async_session() as session:
+        user = await session.get(User, user_id)
+        if not user:
+            return False
+
+        # Delete points and transactions
+        from sqlalchemy import delete as sql_delete
+        await session.execute(sql_delete(PointTransaction).where(PointTransaction.user_id == user_id))
+        await session.execute(sql_delete(MemberPoints).where(MemberPoints.user_id == user_id))
+        await session.execute(sql_delete(Watchlist).where(Watchlist.user_id == user_id))
+
+        await session.delete(user)
+        await session.commit()
+        return True
+
+
+async def get_all_transactions(limit: int = 100, offset: int = 0) -> list[dict]:
+    """Get all point transactions across all users."""
+    from sqlalchemy import select
+
+    async with async_session() as session:
+        stmt = (
+            select(PointTransaction, User.username)
+            .join(User, PointTransaction.user_id == User.id)
+            .order_by(PointTransaction.created_at.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        result = await session.execute(stmt)
+        rows = result.all()
+
+        return [
+            {
+                "id": txn.id,
+                "user_id": txn.user_id,
+                "username": username,
+                "amount": txn.amount,
+                "source": txn.source,
+                "description": txn.description,
+                "approval_status": txn.approval_status or "approved",
+                "approved_by": txn.approved_by,
+                "approved_at": txn.approved_at.isoformat() if txn.approved_at else None,
+                "created_at": txn.created_at.isoformat() if txn.created_at else None,
+            }
+            for txn, username in rows
+        ]
+
+
+async def get_pending_purchases() -> list[dict]:
+    """Get all pending purchase transactions."""
+    from sqlalchemy import select
+
+    async with async_session() as session:
+        stmt = (
+            select(PointTransaction, User.username)
+            .join(User, PointTransaction.user_id == User.id)
+            .where(
+                PointTransaction.source == "purchase",
+                PointTransaction.approval_status == "pending",
+            )
+            .order_by(PointTransaction.created_at.desc())
+        )
+        result = await session.execute(stmt)
+        rows = result.all()
+
+        return [
+            {
+                "id": txn.id,
+                "user_id": txn.user_id,
+                "username": username,
+                "amount": txn.amount,
+                "description": txn.description,
+                "created_at": txn.created_at.isoformat() if txn.created_at else None,
+            }
+            for txn, username in rows
+        ]
+
+
+async def approve_purchase(transaction_id: int, admin_id: int) -> bool:
+    """Approve a pending purchase and credit points."""
+    async with async_session() as session:
+        txn = await session.get(PointTransaction, transaction_id)
+        if not txn or txn.approval_status != "pending":
+            return False
+
+        txn.approval_status = "approved"
+        txn.approved_by = admin_id
+        txn.approved_at = datetime.now(timezone.utc)
+
+        # Credit points
+        from sqlalchemy import select
+        stmt = select(MemberPoints).where(MemberPoints.user_id == txn.user_id)
+        result = await session.execute(stmt)
+        mp = result.scalar_one_or_none()
+
+        if mp is None:
+            mp = MemberPoints(user_id=txn.user_id, total_points=0, member_level="entry")
+            session.add(mp)
+
+        mp.total_points += txn.amount
+        mp.member_level = calculate_member_level(mp.total_points)
+
+        await session.commit()
+        return True
+
+
+async def reject_purchase(transaction_id: int, admin_id: int) -> bool:
+    """Reject a pending purchase."""
+    async with async_session() as session:
+        txn = await session.get(PointTransaction, transaction_id)
+        if not txn or txn.approval_status != "pending":
+            return False
+
+        txn.approval_status = "rejected"
+        txn.approved_by = admin_id
+        txn.approved_at = datetime.now(timezone.utc)
+
+        await session.commit()
+        return True
+
+
+async def update_user_page_visibility(user_id: int, visibility: dict | None) -> dict:
+    """Set page visibility for a user."""
+    import json
+
+    async with async_session() as session:
+        user = await session.get(User, user_id)
+        if not user:
+            raise ValueError("User not found")
+
+        user.page_visibility = json.dumps(visibility) if visibility else None
+        await session.commit()
+
+        return {"id": user.id, "username": user.username, "page_visibility": visibility}
+
+
+async def add_points_pending(user_id: int, amount: int, source: str, description: str | None = None) -> dict:
+    """Add a pending purchase transaction (requires admin approval)."""
+    if amount <= 0:
+        raise ValueError("Amount must be positive")
+
+    async with async_session() as session:
+        txn = PointTransaction(
+            user_id=user_id,
+            amount=amount,
+            source=source,
+            description=description,
+            approval_status="pending",
+        )
+        session.add(txn)
+        await session.commit()
+
+        return {"id": txn.id, "status": "pending", "amount": amount}
